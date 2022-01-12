@@ -236,6 +236,15 @@ class EditLog(models.Model):
         managed = True
         db_table = "edit_log"
 
+class LatestResourceEdit(models.Model):
+    editlogid = models.UUIDField(primary_key=True, default=uuid.uuid1)
+    resourceinstanceid = models.TextField(blank=True, null=True)
+    edittype = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = "latest_resource_edit"
 
 class MobileSyncLog(models.Model):
     logid = models.UUIDField(primary_key=True, default=uuid.uuid1)

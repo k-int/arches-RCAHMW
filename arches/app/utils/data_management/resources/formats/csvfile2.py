@@ -23,13 +23,10 @@ from arches.app.models.models import (
     FunctionXGraph,
     GraphXMapping,
 )
-from arches.app.models.card import Card
 from arches.app.utils.data_management.resource_graphs import exporter as GraphExporter
 from arches.app.models.resource import Resource
 from arches.app.models.system_settings import settings
 from arches.app.datatypes.datatypes import DataTypeFactory
-import arches.app.utils.task_management as task_management
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import ugettext as _
@@ -133,102 +130,87 @@ class CsvWriter(Writer):
         csv_header = ["ResourceID"] + list(mapping.values())
         csvs_for_export = []
 
-        csv_name = "testcsv1.csv"
-        with open(csv_name, "w") as file:
-            #dest = StringIO()
-            csvwriter_test = csv.DictWriter(file, fieldnames=csv_header)
-            csvwriter_test.writeheader()
-            numberi = 0
-            for resourceinstanceid, tiles in self.resourceinstances.items():
-                numberi+=1
-                csv_record = {}
-                csv_record["ResourceID"] = resourceinstanceid
-                csv_record["populated_node_groups"] = []
+        for resourceinstanceid, tiles in self.resourceinstances.items():
+            csv_record = {}
+            csv_record["ResourceID"] = resourceinstanceid
+            csv_record["populated_node_groups"] = []
 
-                try:
-                    parents = [p for p in tiles if p.parenttile_id is None]
-                    children = [c for c in tiles if c.parenttile_id is not None]
-                    tiles = parents + sorted(children, key=lambda k: k.parenttile_id)
-                except Exception as e:
-                    logger.exception(e)
+            try:
+                parents = [p for p in tiles if p.parenttile_id is None]
+                children = [c for c in tiles if c.parenttile_id is not None]
+                tiles = parents + sorted(children, key=lambda k: k.parenttile_id)
+            except Exception as e:
+                logger.exception(e)
 
-                for tile in tiles:
-                    other_group_record = {}
-                    other_group_record["ResourceID"] = resourceinstanceid
-                    if tile.data != {}:
-                        for k in list(tile.data.keys()):
-                            if tile.data[k] != "" and k in mapping and tile.data[k] is not None:
-                                if mapping[k] not in csv_record and tile.nodegroup_id not in csv_record["populated_node_groups"]:
-                                    concept_export_value_type = None
-                                    if k in concept_export_value_lookup:
-                                        concept_export_value_type = concept_export_value_lookup[k]
-                                    if tile.data[k] is not None:
-                                        value = self.transform_value_for_export(
-                                            self.node_datatypes[k], tile.data[k], concept_export_value_type, k
-                                        )
-                                        csv_record[mapping[k]] = value
-                                    del tile.data[k]
-                                else:
-                                    concept_export_value_type = None
-                                    if k in concept_export_value_lookup:
-                                        concept_export_value_type = concept_export_value_lookup[k]
-                                    value = self.transform_value_for_export(self.node_datatypes[k], tile.data[k], concept_export_value_type, k,)
-                                    other_group_record[mapping[k]] = value
-                            else:
+            for tile in tiles:
+                other_group_record = {}
+                other_group_record["ResourceID"] = resourceinstanceid
+                if tile.data != {}:
+                    for k in list(tile.data.keys()):
+                        if tile.data[k] != "" and k in mapping and tile.data[k] is not None:
+                            if mapping[k] not in csv_record and tile.nodegroup_id not in csv_record["populated_node_groups"]:
+                                concept_export_value_type = None
+                                if k in concept_export_value_lookup:
+                                    concept_export_value_type = concept_export_value_lookup[k]
+                                if tile.data[k] is not None:
+                                    value = self.transform_value_for_export(
+                                        self.node_datatypes[k], tile.data[k], concept_export_value_type, k
+                                    )
+                                    csv_record[mapping[k]] = value
                                 del tile.data[k]
+                            else:
+                                concept_export_value_type = None
+                                if k in concept_export_value_lookup:
+                                    concept_export_value_type = concept_export_value_lookup[k]
+                                value = self.transform_value_for_export(self.node_datatypes[k], tile.data[k], concept_export_value_type, k,)
+                                other_group_record[mapping[k]] = value
+                        else:
+                            del tile.data[k]
 
-                        csv_record["populated_node_groups"].append(tile.nodegroup_id)
+                    csv_record["populated_node_groups"].append(tile.nodegroup_id)
 
-                    if other_group_record != {"ResourceID": resourceinstanceid}:
-                        other_group_records.append(other_group_record)
+                if other_group_record != {"ResourceID": resourceinstanceid}:
+                    other_group_records.append(other_group_record)
 
-                if csv_record != {"ResourceID": resourceinstanceid}:
-                    csv_records.append(csv_record)
+            if csv_record != {"ResourceID": resourceinstanceid}:
+                csv_records.append(csv_record)
+
+        csv_name = os.path.join("{0}.{1}".format(self.file_name, "csv"))
+
+        if self.single_file is not True:
+            dest = StringIO()
+            csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=csv_header)
+            csvwriter.writeheader()
+            csvs_for_export.append({"name": csv_name, "outputfile": dest})
+            for csv_record in csv_records:
                 if "populated_node_groups" in csv_record:
-                        del csv_record["populated_node_groups"]
+                    del csv_record["populated_node_groups"]
+                csvwriter.writerow({k: str(v) for k, v in list(csv_record.items())})
 
-                my_dict = {}
-                csvwriter_test.writerow({k: str(v) for k, v in list(csv_record.items())})
-                print(numberi)
-            exit()
+            dest = StringIO()
+            csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=csv_header)
+            csvwriter.writeheader()
+            csvs_for_export.append(
+                {"name": csv_name.split(".")[0] + "_groups." + csv_name.split(".")[1], "outputfile": dest,}
+            )
+            for csv_record in other_group_records:
+                if "populated_node_groups" in csv_record:
+                    del csv_record["populated_node_groups"]
+                csvwriter.writerow({k: str(v) for k, v in list(csv_record.items())})
+        elif self.single_file == True:
+            all_records = csv_records + other_group_records
+            all_records = sorted(all_records, key=lambda k: k["ResourceID"])
+            dest = StringIO()
+            csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=csv_header)
+            csvwriter.writeheader()
+            csvs_for_export.append({"name": csv_name, "outputfile": dest})
+            for csv_record in all_records:
+                if "populated_node_groups" in csv_record:
+                    del csv_record["populated_node_groups"]
+                csvwriter.writerow({k: str(v) for k, v in list(csv_record.items())})
 
-        # csv_name = os.path.join("{0}.{1}".format(self.file_name, "csv"))
-
-
-        # if self.single_file is not True:
-        #     dest = StringIO()
-        #     csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=csv_header)
-        #     csvwriter.writeheader()
-        #     csvs_for_export.append({"name": csv_name, "outputfile": dest})
-        #     for csv_record in csv_records:
-        #         if "populated_node_groups" in csv_record:
-        #             del csv_record["populated_node_groups"]
-        #         csvwriter.writerow({k: str(v) for k, v in list(csv_record.items())})
-
-        #     dest = StringIO()
-        #     csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=csv_header)
-        #     csvwriter.writeheader()
-        #     csvs_for_export.append(
-        #         {"name": csv_name.split(".")[0] + "_groups." + csv_name.split(".")[1], "outputfile": dest,}
-        #     )
-        #     for csv_record in other_group_records:
-        #         if "populated_node_groups" in csv_record:
-        #             del csv_record["populated_node_groups"]
-        #         csvwriter.writerow({k: str(v) for k, v in list(csv_record.items())})
-        # elif self.single_file == True:
-        #     all_records = csv_records + other_group_records
-        #     all_records = sorted(all_records, key=lambda k: k["ResourceID"])
-        #     dest = StringIO()
-        #     csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=csv_header)
-        #     csvwriter.writeheader()
-        #     csvs_for_export.append({"name": csv_name, "outputfile": dest})
-        #     for csv_record in all_records:
-        #         if "populated_node_groups" in csv_record:
-        #             del csv_record["populated_node_groups"]
-        #         csvwriter.writerow({k: str(v) for k, v in list(csv_record.items())})
-
-        # if self.graph_id is not None:
-        #     csvs_for_export = csvs_for_export + self.write_resource_relations(file_name=self.file_name)
+        if self.graph_id is not None:
+            csvs_for_export = csvs_for_export + self.write_resource_relations(file_name=self.file_name)
 
         return csvs_for_export
 
@@ -243,10 +225,6 @@ class CsvWriter(Writer):
                 "resourceinstanceidfrom",
                 "resourceinstanceidto",
                 "relationshiptype",
-                "resourceinstancefrom_graphid",
-                "resourceinstanceto_graphid",
-                "nodeid",
-                "tileid",
                 "datestarted",
                 "dateended",
                 "notes",
@@ -257,7 +235,7 @@ class CsvWriter(Writer):
             relations_file.append({"name": csv_name, "outputfile": dest})
 
             relations = ResourceXResource.objects.filter(
-                Q(resourceinstanceidfrom__in=resourceids) | Q(resourceinstanceidto__in=resourceids), tileid__isnull=True
+                Q(resourceinstanceidfrom__in=resourceids) | Q(resourceinstanceidto__in=resourceids)
             ).values(*csv_header)
             for relation in relations:
                 relation["datestarted"] = relation["datestarted"] if relation["datestarted"] is not None else ""
@@ -271,107 +249,82 @@ class CsvWriter(Writer):
 class TileCsvWriter(Writer):
     def __init__(self, **kwargs):
         super(TileCsvWriter, self).__init__(**kwargs)
+        self.node_datatypes = {
+            str(nodeid): datatype
+            for nodeid, datatype in Node.objects.values_list("nodeid", "datatype").filter(~Q(datatype="semantic"), graph__isresource=True)
+        }
 
-    def group_tiles(self, tiles, key):
-        new_tiles = {}
-
-        for tile in tiles:
-            new_tiles[str(tile[key])] = []
-
-        for tile in tiles:
-            if str(tile[key]) in new_tiles.keys():
-                new_tiles[str(tile[key])].append(tile)
-
-        return new_tiles
-
-    def lookup_node_name(self, nodeid):
-        try:
-            node_name = Node.objects.get(nodeid=nodeid).name
-        except Node.DoesNotExist:
-            node_name = nodeid
-
-        return node_name
-
-    node_datatypes = {}
-
-    def lookup_node_value(self, value, nodeid):
-        if nodeid in self.node_datatypes:
-            datatype = self.node_datatypes[nodeid]
-        else:
-            datatype = DataTypeFactory().get_instance(Node.objects.get(nodeid=nodeid).datatype)
-            self.node_datatypes[nodeid] = datatype
-
-        if value is not None:
-            value = self.node_datatypes[nodeid].transform_export_values(value, concept_export_value_type="label", node=nodeid)
-
+    def transform_value_for_export(self, datatype, value, concept_export_value_type, node):
+        datatype_instance = self.datatype_factory.get_instance(datatype)
+        value = datatype_instance.transform_export_values(value, concept_export_value_type=concept_export_value_type, node=node)
         return value
-
-    def flatten_tile(self, tile, semantic_nodes):
-        for nodeid in tile["data"]:
-            if nodeid not in semantic_nodes:
-                node_name = self.lookup_node_name(nodeid)
-                node_value = self.lookup_node_value(tile["data"][nodeid], nodeid)
-                tile[node_name] = node_value
-        del tile["data"]
-
-        return tile
 
     def write_resources(self, graph_id=None, resourceinstanceids=None, **kwargs):
         super(TileCsvWriter, self).write_resources(graph_id=graph_id, resourceinstanceids=resourceinstanceids, **kwargs)
 
+        csv_records = []
+        other_group_records = []
+        concept_export_value_lookup = {}
+        csv_header = ["ResourceID"]
+        mapping = {}
+        nodes = Node.objects.filter(graph_id=self.graph_id)
+        for node in nodes:
+            mapping[str(node.nodeid)] = node.name
+        csv_header = ["ResourceID", "ResourceLegacyID", "ResourceModelID", "TileID", "ParentTileID", "NodeGroupID"] + list(mapping.values())
         csvs_for_export = []
 
-        tiles = self.group_tiles(
-            list(Tile.objects.filter(resourceinstance__graph_id=graph_id).order_by("nodegroup_id").values()), "nodegroup_id"
-        )
-        semantic_nodes = [str(n[0]) for n in Node.objects.filter(datatype="semantic").values_list("nodeid")]
+        for resourceinstanceid, tiles in self.resourceinstances.items():
+            tiles = sorted(tiles, key=lambda k: k.parenttile_id)
+            for tile in tiles:
+                csv_record = {}
+                csv_record["ResourceID"] = resourceinstanceid
+                csv_record["ResourceModelID"] = self.graph_id
+                csv_record["TileID"] = tile.tileid
+                csv_record["ParentTileID"] = str(tile.parenttile_id)
+                csv_record["NodeGroupID"] = str(tile.nodegroup_id)
+                for k in list(tile.data.keys()):
+                    resource_instance = ResourceInstance.objects.get(resourceinstanceid=resourceinstanceid)
+                    csv_record["ResourceLegacyID"] = (
+                        str(resource_instance.legacyid)
+                        if resource_instance.legacyid is not None
+                        else str(resource_instance.resourceinstanceid)
+                    )
+                    if tile.data[k] != "" and tile.data[k] is not None:
+                        concept_export_value_type = "label"
+                        if k in concept_export_value_lookup:
+                            concept_export_value_type = concept_export_value_lookup[k]
+                        if tile.data[k] is not None:
+                            value = self.transform_value_for_export(self.node_datatypes[k], tile.data[k], concept_export_value_type, k)
+                            csv_record[mapping[k]] = value
+                        del tile.data[k]
+                    else:
+                        del tile.data[k]
 
-        for nodegroupid, nodegroup_tiles in tiles.items():
-            flattened_tiles = []
-            fieldnames = []
-            for tile in nodegroup_tiles:
-                tile["tileid"] = str(tile["tileid"])
-                tile["resourceinstance_id"] = str(tile["resourceinstance_id"])
-                tile["parenttile_id"] = str(tile["parenttile_id"])
-                tile["nodegroup_id"] = str(tile["nodegroup_id"])
-                flattened_tile = self.flatten_tile(tile, semantic_nodes)
-                flattened_tiles.append(flattened_tile)
+                if csv_record != {"ResourceID": resourceinstanceid}:
+                    csv_records.append(csv_record)
 
-                for fieldname in flattened_tile:
-                    if fieldname not in fieldnames:
-                        fieldnames.append(fieldname)
+        dest = StringIO()
+        csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=csv_header)
+        csvwriter.writeheader()
+        all_records = sorted(csv_records, key=lambda k: k["ResourceID"])
+        for csv_record in all_records:
+            if "populated_node_groups" in csv_record:
+                del csv_record["populated_node_groups"]
+            csvwriter.writerow({k: str(v) for k, v in list(csv_record.items())})
 
-            tiles[nodegroupid] = sorted(flattened_tiles, key=lambda k: k["resourceinstance_id"])
-
-            ncsv_file = []
-            dest = StringIO()
-            csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=fieldnames)
-            csvwriter.writeheader()
-            csv_name = os.path.join("{0}.{1}".format(Card.objects.get(nodegroup_id=nodegroupid).name, "csv"))
-            for v in tiles[nodegroupid]:
-                csvwriter.writerow(v)
-            csvs_for_export.append({"name": csv_name, "outputfile": dest})
+        csv_name = os.path.join("{0}.{1}".format(self.file_name, "csv"))
+        csvs_for_export.append({"name": csv_name, "outputfile": dest})
+        if self.graph_id is not None:
+            csvs_for_export = csvs_for_export
 
         return csvs_for_export
 
 
 class CsvReader(Reader):
     def __init__(self):
-        self.errors = []
         super(CsvReader, self).__init__()
 
-    def save_resource(
-        self,
-        populated_tiles,
-        resourceinstanceid,
-        legacyid,
-        resources,
-        target_resource_model,
-        bulk,
-        save_count,
-        row_number,
-        prevent_indexing,
-    ):
+    def save_resource(self, populated_tiles, resourceinstanceid, legacyid, resources, target_resource_model, bulk, save_count, row_number):
         # create a resource instance only if there are populated_tiles
         errors = []
         if len(populated_tiles) > 0:
@@ -391,11 +344,9 @@ class CsvReader(Reader):
                     del resources[:]  # clear out the array
             else:
                 try:
-                    newresourceinstance.save(index=(not prevent_indexing))
-
+                    newresourceinstance.save()
                 except TransportError as e:
-
-                    cause = json.dumps(e.info["error"]["reason"], indent=1)
+                    cause = json.dumps(e.info["error"]["caused_by"], indent=1)
                     msg = "%s: WARNING: failed to index document in resource: %s %s. Exception detail:\n%s\n" % (
                         datetime.datetime.now(),
                         resourceinstanceid,
@@ -432,17 +383,9 @@ class CsvReader(Reader):
             print("%s resources processed" % str(save_count))
 
     def import_business_data(
-        self,
-        business_data=None,
-        mapping=None,
-        overwrite="append",
-        bulk=False,
-        create_concepts=False,
-        create_collections=False,
-        prevent_indexing=False,
+        self, business_data=None, mapping=None, overwrite="append", bulk=False, create_concepts=False, create_collections=False
     ):
         # errors = businessDataValidator(self.business_data)
-        celery_worker_running = task_management.check_if_celery_available()
 
         print("Starting import of business data")
         self.start = time()
@@ -520,8 +463,7 @@ class CsvReader(Reader):
                         Please add a 'ResourceID' column with a unique resource identifier."
                     )
                     print("*" * 80)
-                    if celery_worker_running is False:  # prevents celery chord from breaking on WorkerLostError
-                        sys.exit()
+                    sys.exit()
                 graphid = mapping["resource_model_id"]
                 blanktilecache = {}
                 populated_nodegroups = {}
@@ -592,8 +534,7 @@ class CsvReader(Reader):
                         Please sort your csv file by ResourceID and try import again."
                     )
                     print("*" * 80)
-                    if celery_worker_running is False:  # prevents celery chord from breaking on WorkerLostError
-                        sys.exit()
+                    sys.exit()
 
                 def create_reference_data(new_concepts, create_collections):
                     errors = []
@@ -782,7 +723,7 @@ class CsvReader(Reader):
                                 if collection_id is not None:
                                     value = concept_lookup.lookup_labelid_from_label(value, collection_id)
                         try:
-                            value = datatype_instance.transform_value_for_tile(value)
+                            value = datatype_instance.transform_import_values(value, nodeid)
                             errors = datatype_instance.validate(value, row_number=row_number, source=source, nodeid=nodeid)
                         except Exception as e:
                             errors.append(
@@ -824,8 +765,6 @@ class CsvReader(Reader):
 
                 def check_required_nodes(tile, parent_tile, required_nodes, all_nodes):
                     # Check that each required node in a tile is populated.
-                    if settings.BYPASS_REQUIRED_VALUE_TILE_VALIDATION:
-                        return
                     errors = []
                     if len(required_nodes) > 0:
                         if bool(tile.data):
@@ -863,15 +802,7 @@ class CsvReader(Reader):
 
                         save_count = save_count + 1
                         self.save_resource(
-                            populated_tiles,
-                            resourceinstanceid,
-                            legacyid,
-                            resources,
-                            target_resource_model,
-                            bulk,
-                            save_count,
-                            row_number,
-                            prevent_indexing,
+                            populated_tiles, resourceinstanceid, legacyid, resources, target_resource_model, bulk, save_count, row_number
                         )
 
                         # reset values for next resource instance
@@ -897,7 +828,7 @@ class CsvReader(Reader):
                         if list(source_data[0].keys()):
                             try:
                                 target_resource_model = all_nodes.get(nodeid=list(source_data[0].keys())[0]).graph_id
-                            except ObjectDoesNotExist as e:
+                            except Exception as e:
                                 print("*" * 80)
                                 print(
                                     "ERROR: No resource model found. Please make sure the resource model \
@@ -905,8 +836,7 @@ class CsvReader(Reader):
                                 )
                                 print(e)
                                 print("*" * 80)
-                                if celery_worker_running is False:  # prevents celery chord from breaking on WorkerLostError
-                                    sys.exit()
+                                sys.exit()
 
                         target_tile = get_blank_tile(source_data)
                         if "TileID" in row and row["TileID"] is not None:
@@ -937,10 +867,7 @@ class CsvReader(Reader):
                             if str(target_tile.nodegroup_id) not in populated_nodegroups[resourceinstanceid]:
                                 target_tile.nodegroup_id = str(target_tile.nodegroup_id)
                                 # Check if we are populating a parent tile by inspecting the target_tile.data array.
-                                source_data_has_target_tile_nodes = (
-                                    len(set([list(obj.keys())[0] for obj in source_data]) & set(target_tile.data.keys())) > 0
-                                )
-                                if source_data_has_target_tile_nodes:
+                                if target_tile.data != {}:
                                     # Iterate through the target_tile nodes and begin populating by iterating througth source_data array.
                                     # The idea is to populate as much of the target_tile as possible,
                                     # before moving on to the next target_tile.
@@ -1061,38 +988,23 @@ class CsvReader(Reader):
 
                 if "legacyid" in locals():
                     self.save_resource(
-                        populated_tiles,
-                        resourceinstanceid,
-                        legacyid,
-                        resources,
-                        target_resource_model,
-                        bulk,
-                        save_count,
-                        row_number,
-                        prevent_indexing,
+                        populated_tiles, resourceinstanceid, legacyid, resources, target_resource_model, bulk, save_count, row_number
                     )
 
                 if bulk:
                     print("Time to create resource and tile objects: %s" % datetime.timedelta(seconds=time() - self.start))
                     Resource.bulk_save(resources=resources)
-                save_count = save_count + 1
-                print(_("Total resources saved: {save_count}").format(**locals()))
+                print(_(f"Total resources saved: {save_count + 1}"))
 
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             formatted = traceback.format_exception(exc_type, exc_value, exc_traceback)
             if len(formatted):
                 for message in formatted:
-                    logger.error(message)
+                    print(message)
 
         finally:
-            for e in self.errors:
-                if e["type"] == "WARNING":
-                    logger.warn(e["message"])
-                elif e["type"] == "ERROR":
-                    logger.error(e["message"])
-                else:
-                    logger.info(e["message"])
+            pass
 
 
 class TileCsvReader(Reader):

@@ -60,6 +60,12 @@ class ArchesFileWriter(Writer):
             resource["tiles"] = tiles
             resource["resourceinstance"] = ResourceInstance.objects.get(resourceinstanceid=resourceinstanceid)
             resources.append(resource)
+        with open("export.jsonl", "w") as f:
+            for counter, res in enumerate(resources):
+                print(counter)
+                f.write(JSONSerializer().serialize(res))
+        exit()
+
 
         export["business_data"]["resources"] = resources
 
