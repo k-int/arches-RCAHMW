@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import json
 import couchdb
+import logging
 import urllib.parse
 from datetime import datetime
 from datetime import timedelta
@@ -63,6 +64,9 @@ def get_survey_resources(mobile_survey):
         )
 
     return resources
+
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(group_required("Application Administrator"), name="dispatch")
@@ -138,12 +142,11 @@ class MobileSurveyDesignerView(MapBaseManagerView):
                 history["lastsync"] = lastsync
             for entry in sync_log_records:
                 history["edits"] = len(resourceedits)
-                if entry["user"] not in history["editors"]:
-                    history["editors"][entry["user"]] = {"edits": entry["tilesupdated"], "lastsync": entry["finished"]}
+                if entry["userid"] not in history["editors"]:
+                    history["editors"][entry["userid"]] = {"lastsync": entry["finished"]}
                 else:
-                    history["editors"][entry["user"]]["edits"] += entry["tilesupdated"]
-                    if entry["finished"] > history["editors"][entry["user"]]["lastsync"]:
-                        history["editors"][entry["user"]]["lastsync"] = entry["finished"]
+                    if entry["finished"] > history["editors"][entry["userid"]]["lastsync"]:
+                        history["editors"][entry["userid"]]["lastsync"] = entry["finished"]
             for id, editor in iter(list(history["editors"].items())):
                 editor["lastsync"] = datetime.strftime(editor["lastsync"], "%Y-%m-%d %H:%M:%S")
             return history
@@ -206,7 +209,7 @@ class MobileSurveyDesignerView(MapBaseManagerView):
         else:
             survey = MobileSurvey(
                 id=surveyid,
-                name=_(""),
+                name="",
                 datadownloadconfig={"download": False, "count": 100, "resources": [], "custom": None},
                 onlinebasemaps=settings.MOBILE_DEFAULT_ONLINE_BASEMAP,
             )
@@ -396,7 +399,7 @@ class MobileSurveyDesignerView(MapBaseManagerView):
                 "Welcome to Arches!  You've just been added to a Mobile Survey.  \
                 Please take a moment to review the mobile_survey description and mobile_survey start and end dates."
             ),
-            "closing": _(f"If you have any qustions contact the site administrator at {admin_email}."),
+            "closing": _("If you have any qustions contact the site administrator at {admin_email}.").format(**locals()),
         }
 
         html_content = render_to_string("email/general_notification.htm", email_context)
@@ -422,7 +425,7 @@ class MobileSurveyDesignerView(MapBaseManagerView):
                 "Hi!  The Mobile Survey you were part of has ended or is temporarily suspended. \
                 Please permform a final sync of your local dataset as soon as possible."
             ),
-            "closing": _(f"If you have any qustions contact the site administrator at {admin_email}."),
+            "closing": _("If you have any qustions contact the site administrator at {admin_email}.").format(**locals()),
         }
 
         html_content = render_to_string("email/general_notification.htm", email_context)

@@ -149,7 +149,7 @@ wait_for_db() {
     echo "Testing if Elasticsearch is up..."
     while [[ ! ${return_code} == 0 ]]
     do
-        curl -s "http://${ESHOST}:${ESPORT}" >&/dev/null
+        curl -s "http://${ESHOST}:${ESPORT}/_cluster/health?wait_for_status=green&timeout=60s" >&/dev/null
         return_code=$?
         sleep 1
     done
@@ -320,13 +320,7 @@ run_django_server() {
 	echo "----- *** RUNNING DJANGO DEVELOPMENT SERVER *** -----"
 	echo ""
 	cd_app_folder
-	if [[ ${DJANGO_REMOTE_DEBUG} != "True" ]]; then
-	    echo "Running Django with livereload."
-		exec python manage.py runserver 0.0.0.0:${DJANGO_PORT}
-	else
-        echo "Running Django with options --noreload --nothreading for remote debugging."
-		exec python manage.py runserver --noreload --nothreading 0.0.0.0:${DJANGO_PORT}
-	fi
+	exec python manage.py runserver 0.0.0.0:${DJANGO_PORT}
 }
 
 

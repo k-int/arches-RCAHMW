@@ -58,9 +58,31 @@ define([
         this.selectedPopup = ko.observable('');
         this.resultsExpanded = ko.observable(true);
         this.query = ko.observable(getQueryObject());
+        this.clearQuery = function(){
+            Object.values(this.filters).forEach(function(value){
+                if (value()){
+                    if (value().clear){
+                        value().clear();
+                    }
+                }
+            }, this);
+            this.query({"paging-filter": "1", tiles: "true"});
+        };
+        this.filterApplied = ko.pureComputed(function(){
+            var self = this;
+            var filterNames = Object.keys(this.filters);
+            return filterNames.some(function(filterName){
+                if (ko.unwrap(self.filters[filterName]) && filterName !== 'paging-filter') {
+                    return !!ko.unwrap(self.filters[filterName]).query()[filterName];
+                } else {
+                    return false;
+                }
+            });
+        }, this);
         this.mouseoverInstanceId = ko.observable();
         this.mapLinkData = ko.observable(null);
         this.userIsReviewer = ko.observable(false);
+        this.userid = ko.observable(null);
         this.searchResults = {'timestamp': ko.observable()};
         this.selectPopup = function(componentname) {
             if(this.selectedPopup() !== '' && componentname === this.selectedPopup()) {
@@ -95,6 +117,7 @@ define([
             this.viewModel.total = ko.observable();
             _.extend(this, this.viewModel.sharedStateObject);
             this.viewModel.sharedStateObject.total = this.viewModel.total;
+            this.viewModel.sharedStateObject.loading = this.viewModel.loading;
             this.queryString = ko.computed(function() {
                 return JSON.stringify(this.query());
             }, this);
@@ -115,7 +138,6 @@ define([
             }
 
             this.viewModel.loading(true);
-
             this.updateRequest = $.ajax({
                 type: "GET",
                 url: arches.urls.search_results,
@@ -134,6 +156,7 @@ define([
                     }, this);
                     this.viewModel.sharedStateObject.searchResults.timestamp(response.timestamp);
                     this.viewModel.sharedStateObject.userIsReviewer(response.reviewer);
+                    this.viewModel.sharedStateObject.userid(response.userid);
                     this.viewModel.total(response.total_results);
                     this.viewModel.alert(false);
                 },

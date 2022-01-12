@@ -25,14 +25,13 @@ PACKAGE_NAME = "arches"
 ROOT_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 ROOT_DIR = os.path.normpath(os.path.join(ROOT_DIR, "..", "arches"))
 TEST_ROOT = os.path.normpath(os.path.join(ROOT_DIR, "..", "tests"))
+APP_ROOT = ""
 
 # LOAD_V3_DATA_DURING_TESTS = True will engage the most extensive the of the v3
 # data migration tests, which could add over a minute to the test process. It's
 # recommended that this setting only be set to True in tests/settings_local.py
 # and run in specific cases at the discretion of the developer.
 LOAD_V3_DATA_DURING_TESTS = False
-
-SEARCH_BACKEND = "tests.base_test.TestSearchEngine"
 
 RESOURCE_GRAPH_LOCATIONS = (os.path.join(TEST_ROOT, "fixtures", "resource_graphs"),)
 
@@ -44,6 +43,8 @@ BUSISNESS_DATA_FILES = (
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
 )
+
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache",}}
 
 ELASTICSEARCH_PREFIX = "test"
 
@@ -74,13 +75,14 @@ REMOTE_BROWSERS = [
     #  "version": "45"}
 ]
 
+BYPASS_CARDINALITY_TILE_VALIDATION = False
+
 OVERRIDE_RESOURCE_MODEL_LOCK = True
 
 # Tell nose to measure coverage on the 'foo' and 'bar' apps
 NOSE_ARGS = ["--with-coverage", "--nologcapture", "--cover-package=arches", "--verbosity=1", "--cover-erase"]
 
 INSTALLED_APPS = INSTALLED_APPS + ("django_nose",)
-
 
 DATATYPE_LOCATIONS.append('tests.fixtures.datatypes')
 

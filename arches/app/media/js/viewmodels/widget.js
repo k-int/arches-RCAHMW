@@ -36,8 +36,14 @@ define([
         this.tile = params.tile || null;
         this.widget = params.widget || null;
         this.results = params.results || null;
+        this.hideEmptyNodes = params.hideEmptyNodes;
         this.displayValue = ko.computed(function() {
-            return ko.unwrap(self.value);
+            if (self.value.value) {
+                return ko.unwrap(self.value.value);
+            }
+            else {
+                return ko.unwrap(self.value);
+            }
         });
         this.disabled = params.disabled || ko.observable(false);
         this.node = params.node || null;
@@ -82,7 +88,7 @@ define([
 
         if (ko.isObservable(this.defaultValue)) {
             var defaultValue = this.defaultValue();
-            if (this.tile && ko.unwrap(this.tile.tileid) == "" && defaultValue != null && defaultValue != "") {
+            if (this.tile && !this.tile.noDefaults && ko.unwrap(this.tile.tileid) == "" && defaultValue != null && defaultValue != "") {
                 this.value(defaultValue);
             }
 

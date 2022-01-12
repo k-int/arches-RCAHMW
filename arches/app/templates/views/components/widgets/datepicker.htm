@@ -22,7 +22,12 @@
 
 {% block report %}
 <dt data-bind="text: label"></dt>
+<!-- ko if: value() !== null -->
 <dd data-bind="date: value(), dateFormat: dateFormat || '{% trans "No Date Entered" %}'"></dd>
+<!-- /ko -->
+<!-- ko if: value() === null -->
+<dd>{% trans "None" %}</dd>
+<!-- /ko -->
 {% endblock report %}
 
 {% block config_form %}
@@ -43,13 +48,6 @@
 </div>
 <div class="col-xs-12 pad-no crud-widget-container">
     <select type="" id="" placeholder="{% trans " View Mode " %}" data-bind="options:viewModeOptions, optionsText:'name', optionsValue:'id', event: {change: onViewModeSelection}, value: viewMode, chosen: {width: '100%', disable_search: true}"></select>
-</div>
-
-<div class="control-label">
-    {% trans "Date Format" %}
-</div>
-<div class="col-xs-12 pad-no crud-widget-container">
-    <select type="" id="" placeholder="{% trans " Date Format " %}" data-bind="options:dateFormatOptions, optionsText:'name', optionsValue:'id', event: {change: onDateFormatSelection}, value: dateFormat, chosen: {width: '100%', disable_search: true}"></select>
 </div>
 <div class="control-label">
     {% trans "Default Value" %}

@@ -10,11 +10,7 @@ import urllib.request, urllib.parse, urllib.error
 import os
 import imp
 import logging
-from arches.app.search.mappings import (
-    prepare_terms_index,
-    prepare_concepts_index,
-    prepare_resource_relations_index,
-)
+import requests
 from arches.setup import unzip_file
 from arches.management.commands import utils
 from arches.app.utils import import_class_from_string
@@ -36,6 +32,7 @@ from arches.app.models import models
 import arches.app.utils.data_management.resource_graphs.importer as graph_importer
 import arches.app.utils.data_management.resource_graphs.exporter as graph_exporter
 import arches.app.utils.data_management.resources.remover as resource_remover
+import arches.app.utils.task_management as task_management
 from django.forms.models import model_to_dict
 from django.db.utils import IntegrityError
 from django.db import transaction, connection
@@ -188,7 +185,8 @@ class Command(BaseCommand):
 
         parser.add_argument("-b", "--is_basemap", action="store_true", dest="is_basemap", help="Add to make the layer a basemap.")
 
-        parser.add_argument("-db", "--setup_db", action="store", dest="setup_db", default=False, help="Rebuild database")
+        parser.add_argument("-db", "--setup_db", action="store_true", dest="setup_db", default=False, help="Rebuild database")
+        parser.add_argument("-dev", "--dev", action="store_true", dest="dev", help="Loading package for development")
 
         parser.add_argument(
             "-bulk",
@@ -197,6 +195,23 @@ class Command(BaseCommand):
             dest="bulk_load",
             help="Bulk load values into the database.  By setting this flag the system will bypass any PreSave \
             functions attached to the resource, as well as prevent some logging statements from printing to console.",
+        )
+
+        parser.add_argument(
+            "-di",
+            "--defer_indexing",
+            action="store",
+            default=True,
+            dest="defer_indexing",
+            help="t/f - True(t) Defer indexing until all data is loaded (default).  Should speed up data load. False(f) to index resources and concepts incrementally during loading which allows users to search data while package load runs.",
+        )
+
+        parser.add_argument(
+            "-pi",
+            "--prevent_indexing",
+            action="store_true",
+            dest="prevent_indexing",
+            help="Prevents indexing the resources or concepts into Elasticsearch",
         )
 
         parser.add_argument(
@@ -216,6 +231,8 @@ class Command(BaseCommand):
             help="Export grouped business data attrbiutes one or multiple csv files. By setting this flag the system \
             will export all grouped business data to one csv file.",
         )
+
+        parser.add_argument("-type", "--graphtype", action="store", dest="type", help="indicates the type of graph intended for export")
 
         parser.add_argument(
             "-y", "--yes", action="store_true", dest="yes", help='used to force a yes answer to any user input "continue? y/n" prompt'
@@ -248,13 +265,13 @@ class Command(BaseCommand):
             )
 
         if options["operation"] == "import_reference_data":
-            self.import_reference_data(options["source"], options["overwrite"], options["stage"], options["bulk_load"])
+            self.import_reference_data(options["source"], options["overwrite"], options["stage"], options["prevent_indexing"])
 
         if options["operation"] == "import_graphs":
             self.import_graphs(options["source"])
 
         if options["operation"] == "export_graphs":
-            self.export_graphs(options["dest_dir"], options["graphs"])
+            self.export_graphs(options["dest_dir"], options["graphs"], options["type"])
 
         if options["operation"] == "import_business_data":
 
@@ -266,6 +283,7 @@ class Command(BaseCommand):
                 options["create_concepts"],
                 use_multiprocessing=options["use_multiprocessing"],
                 force=options["yes"],
+                prevent_indexing=options["prevent_indexing"],
             )
 
         if options["operation"] == "import_node_value_data":
@@ -292,8 +310,16 @@ class Command(BaseCommand):
             self.create_mapping_file(options["dest_dir"], options["graphs"])
 
         if options["operation"] in ["load", "load_package"]:
+            defer_indexing = False if str(options["defer_indexing"])[0].lower() == "f" else True
             self.load_package(
-                options["source"], options["setup_db"], options["overwrite"], options["bulk_load"], options["stage"], options["yes"]
+                options["source"],
+                options["setup_db"],
+                options["overwrite"],
+                options["bulk_load"],
+                options["stage"],
+                options["yes"],
+                options["dev"],
+                defer_indexing,
             )
 
         if options["operation"] in ["create", "create_package"]:
@@ -309,7 +335,7 @@ class Command(BaseCommand):
         with open(os.path.join(dest_dir, "package_config.json"), "w") as config_file:
             try:
                 constraints = models.Resource2ResourceConstraint.objects.all()
-                configs = {"permitted_resource_relationships": constraints}
+                configs = {"permitted_resource_relationships": constraints, "business_data_load_order": []}
                 config_file.write(JSONSerializer().serialize(configs))
             except Exception as e:
                 print(e)
@@ -468,12 +494,25 @@ class Command(BaseCommand):
             self.export_package_settings(dest_dir, "true")
 
     def load_package(
-        self, source, setup_db=True, overwrite_concepts="ignore", bulk_load=False, stage_concepts="keep", yes=False,
+        self,
+        source,
+        setup_db=False,
+        overwrite_concepts="ignore",
+        bulk_load=False,
+        stage_concepts="keep",
+        yes=False,
+        dev=False,
+        defer_indexing=True,
     ):
+
+        celery_worker_running = task_management.check_if_celery_available()
+
         def load_ontologies(package_dir):
             ontologies = glob.glob(os.path.join(package_dir, "ontologies/*"))
             if len(ontologies) > 0:
                 print("loading ontologies")
+            else:
+                print("No Ontologies to load")
             for ontology in ontologies:
                 management.call_command("load_ontology", source=ontology)
 
@@ -512,26 +551,31 @@ class Command(BaseCommand):
         def load_resource_to_resource_constraints(package_dir):
             config_paths = glob.glob(os.path.join(package_dir, "package_config.json"))
             if len(config_paths) > 0:
-                configs = json.load(open(config_paths[0]))
-                for relationship in configs["permitted_resource_relationships"]:
-                    (obj, created) = models.Resource2ResourceConstraint.objects.update_or_create(
-                        resourceclassfrom_id=uuid.UUID(relationship["resourceclassfrom_id"]),
-                        resourceclassto_id=uuid.UUID(relationship["resourceclassto_id"]),
-                        resource2resourceid=uuid.UUID(relationship["resource2resourceid"]),
-                    )
+                try:
+                    configs = json.load(open(config_paths[0]))
+                    for relationship in configs["permitted_resource_relationships"]:
+                        (obj, created) = models.Resource2ResourceConstraint.objects.update_or_create(
+                            resourceclassfrom_id=uuid.UUID(relationship["resourceclassfrom_id"]),
+                            resourceclassto_id=uuid.UUID(relationship["resourceclassto_id"]),
+                            resource2resourceid=uuid.UUID(relationship["resource2resourceid"]),
+                        )
+                except json.decoder.JSONDecodeError as e:
+                    logger.warn("Invalid syntax in package_config.json. Please inspect and then re-run command.")
+                    logger.warn(e)
+                    sys.exit()
 
         @transaction.atomic
-        def load_preliminary_sql(package_dir):
-            resource_views = glob.glob(os.path.join(package_dir, "preliminary_sql", "*.sql"))
+        def load_sql(package_dir, sql_dir):
+            sql_files = glob.glob(os.path.join(package_dir, sql_dir, "*.sql"))
             try:
                 with connection.cursor() as cursor:
-                    for view in resource_views:
-                        with open(view, "r") as f:
+                    for sql_file in sql_files:
+                        with open(sql_file, "r") as f:
                             sql = f.read()
                             cursor.execute(sql)
             except Exception as e:
                 print(e)
-                print("Could not connect to db")
+                print("Failed to load sql files")
 
         def load_resource_views(package_dir):
             resource_views = glob.glob(os.path.join(package_dir, "business_data", "resource_views", "*.sql"))
@@ -543,17 +587,21 @@ class Command(BaseCommand):
                             cursor.execute(sql)
             except Exception as e:
                 print(e)
-                print("Could not connect to db")
+                print("Failed to load resource views")
 
         def load_graphs(package_dir):
-            branches = glob.glob(os.path.join(package_dir, "graphs", "branches"))[0]
+            try:
+                branches = glob.glob(os.path.join(package_dir, "graphs", "branches"))[0]
+            except IndexError as e:
+                logger.warning("No branches in package")
+                branches = ""
             resource_models = glob.glob(os.path.join(package_dir, "graphs", "resource_models"))[0]
             # self.import_graphs(os.path.join(settings.ROOT_DIR, 'db', 'graphs','branches'), overwrite_graphs=False)
             overwrite_graphs = True if yes is True else False
             self.import_graphs(branches, overwrite_graphs=overwrite_graphs)
             self.import_graphs(resource_models, overwrite_graphs=overwrite_graphs)
 
-        def load_concepts(package_dir, overwrite, stage):
+        def load_concepts(package_dir, overwrite, stage, defer_indexing):
             file_types = ["*.xml", "*.rdf"]
 
             from time import time
@@ -568,7 +616,7 @@ class Command(BaseCommand):
             for path in concept_data:
                 if bar1 is None:
                     print(path)
-                self.import_reference_data(path, overwrite, stage, bulk_load)
+                self.import_reference_data(path, overwrite, stage, defer_indexing)
                 if bar1 is not None:
                     head, tail = os.path.split(path)
                     bar1.update(item_id=tail + (" " * 10))
@@ -581,7 +629,7 @@ class Command(BaseCommand):
             for path in collection_data:
                 if bar2 is None:
                     print(path)
-                self.import_reference_data(path, overwrite, stage, bulk_load)
+                self.import_reference_data(path, overwrite, stage, defer_indexing)
                 if bar2 is not None:
                     head, tail = os.path.split(path)
                     bar2.update(item_id=tail)
@@ -605,30 +653,69 @@ class Command(BaseCommand):
             load_mapbox_styles(basemap_styles, True)
             load_mapbox_styles(overlay_styles, False)
 
-        def load_business_data(package_dir):
+        def load_business_data(package_dir, prevent_indexing):
             config_paths = glob.glob(os.path.join(package_dir, "package_config.json"))
             configs = {}
             if len(config_paths) > 0:
                 configs = json.load(open(config_paths[0]))
 
             business_data = []
-            if "business_data_load_order" in configs and len(configs["business_data_load_order"]) > 0:
-                for f in configs["business_data_load_order"]:
-                    business_data.append(os.path.join(package_dir, "business_data", f))
+            if dev and os.path.isdir(os.path.join(package_dir, "business_data", "dev_data")):
+                if "business_data_load_order" in configs and len(configs["business_data_load_order"]) > 0:
+                    for f in configs["business_data_load_order"]:
+                        business_data.append(os.path.join(package_dir, "business_data", "dev_data", f))
+                else:
+                    for ext in ["*.json", "*.jsonl", "*.csv"]:
+                        business_data += glob.glob(os.path.join(package_dir, "business_data", "dev_data", ext))
             else:
-                business_data += glob.glob(os.path.join(package_dir, "business_data", "*.json"))
-                business_data += glob.glob(os.path.join(package_dir, "business_data", "*.jsonl"))
-                business_data += glob.glob(os.path.join(package_dir, "business_data", "*.csv"))
+                if "business_data_load_order" in configs and len(configs["business_data_load_order"]) > 0:
+                    for f in configs["business_data_load_order"]:
+                        business_data.append(os.path.join(package_dir, "business_data", f))
+                else:
+                    for ext in ["*.json", "*.jsonl", "*.csv"]:
+                        business_data += glob.glob(os.path.join(package_dir, "business_data", ext))
+
+            erring_csvs = [
+                path
+                for path in business_data
+                if os.path.splitext(path)[1] == ".csv" and os.path.isfile(os.path.splitext(path)[0] + ".mapping") is False
+            ]
+            message = (
+                f"The following .csv files will not load because they are missing accompanying .mapping files: \n\t {','.join(erring_csvs)}"
+            )
+            if len(erring_csvs) > 0:
+                print(message)
+            if yes is False and len(erring_csvs) > 0:
+                response = input("Proceed with package load without loading indicated csv files? (Y/N): ")
+                if response.lower() in ("t", "true", "y", "yes"):
+                    print("Proceeding with package load")
+                else:
+                    print("Aborting operation: Package Load")
+                    sys.exit()
+
+            if celery_worker_running:
+                from celery import chord
+                from arches.app.tasks import import_business_data, package_load_complete, on_chord_error
+
+                valid_resource_paths = [
+                    path
+                    for path in business_data
+                    if (".csv" in path and os.path.exists(path.replace(".csv", ".mapping"))) or (".json" in path)
+                ]
+
+                # assumes resources in csv do not depend on data being loaded prior from json in same dir
+                chord(
+                    [
+                        import_business_data.s(data_source=path, overwrite=True, bulk_load=bulk_load, prevent_indexing=prevent_indexing)
+                        for path in valid_resource_paths
+                    ]
+                )(package_load_complete.signature(kwargs={"valid_resource_paths": valid_resource_paths}).on_error(on_chord_error.s()))
+            else:
+                for path in business_data:
+                    if path not in erring_csvs:
+                        self.import_business_data(path, overwrite=True, bulk_load=bulk_load, prevent_indexing=prevent_indexing)
 
             relations = glob.glob(os.path.join(package_dir, "business_data", "relations", "*.relations"))
-
-            for path in business_data:
-                if path.endswith("csv"):
-                    config_file = path.replace(".csv", ".mapping")
-                    self.import_business_data(path, overwrite=True, bulk_load=bulk_load)
-                else:
-                    self.import_business_data(path, overwrite=True, bulk_load=bulk_load)
-
             for relation in relations:
                 self.import_business_data_relations(relation)
 
@@ -692,6 +779,14 @@ class Command(BaseCommand):
                     es_index = import_class_from_string(index["module"])(index["name"])
                     es_index.prepare_index()
 
+        def load_kibana_objects(package_dir):
+            # only try and load Kibana objects if they exist
+            if len(glob.glob(os.path.join(package_dir, "kibana_objects", "*.ndjson"))) > 0:
+                commands = ["kibana", "--source_dir", os.path.join(package_dir, "kibana_objects"), "-ow"]
+                if yes is True:
+                    commands.append("-y")
+                management.call_command(*commands, operation="load")
+
         def load_datatypes(package_dir):
             load_extensions(package_dir, "datatypes", "datatype")
 
@@ -712,6 +807,13 @@ class Command(BaseCommand):
 
         def load_functions(package_dir):
             load_extensions(package_dir, "functions", "fn")
+
+        def cache_graphs():
+            management.call_command("cache", operation="graphs")
+
+        def update_resource_materialized_view():
+            with connection.cursor() as cursor:
+                cursor.execute("REFRESH MATERIALIZED VIEW mv_geojson_geoms;")
 
         def load_apps(package_dir):
             package_apps = glob.glob(os.path.join(package_dir, "apps", "*"))
@@ -740,7 +842,7 @@ class Command(BaseCommand):
                 zip_file = os.path.join(unzip_into_dir, "source_data.zip")
                 urllib.request.urlretrieve(source, zip_file)
                 unzip_file(zip_file, unzip_into_dir)
-            except Exception as e:
+            except Exception:
                 pass
 
             for path in os.listdir(unzip_into_dir):
@@ -756,15 +858,17 @@ class Command(BaseCommand):
         if not package_location:
             raise Exception("this is an invalid package source")
 
-        if setup_db is not False:
-            if setup_db.lower() in ("t", "true", "y", "yes"):
-                management.call_command("setup_db", force=True)
-
+        if setup_db:
+            management.call_command("setup_db", force=True)
+        if dev:
+            management.call_command("add_test_users")
         load_ontologies(package_location)
+        print("loading Kibana objects")
+        load_kibana_objects(package_location)
         print("loading package_settings.py")
         load_package_settings(package_location)
         print("loading preliminary sql")
-        load_preliminary_sql(package_location)
+        load_sql(package_location, "preliminary_sql")
         print("loading system settings")
         load_system_settings(package_location)
         print("loading project extensions from project")
@@ -784,7 +888,7 @@ class Command(BaseCommand):
         print("loading datatypes")
         load_datatypes(package_location)
         print("loading concepts")
-        load_concepts(package_location, overwrite_concepts, stage_concepts)
+        load_concepts(package_location, overwrite_concepts, stage_concepts, defer_indexing)
         print("loading resource models and branches")
         load_graphs(package_location)
         print("loading resource to resource constraints")
@@ -794,7 +898,7 @@ class Command(BaseCommand):
         print("loading search indexes")
         load_indexes(package_location)
         print("loading business data - resource instances and relationships")
-        load_business_data(package_location)
+        load_business_data(package_location, defer_indexing)
         print("loading resource views")
         load_resource_views(package_location)
         print("loading apps")
@@ -809,7 +913,17 @@ class Command(BaseCommand):
             css_files = glob.glob(os.path.join(css_source, "*.css"))
             for css_file in css_files:
                 shutil.copy(css_file, css_dest)
-        print("package load complete")
+        print("Refreshing the resource view")
+        update_resource_materialized_view()
+        print("loading post sql")
+        load_sql(package_location, "post_sql")
+        if defer_indexing is True:
+            print("indexing database")
+            management.call_command("es", "reindex_database")
+        if celery_worker_running:
+            print("Celery detected: Resource instances loading. Log in to arches to be notified on completion.")
+        else:
+            print("package load complete")
 
     def setup(self, package_name, es_install_location=None):
         """
@@ -840,54 +954,71 @@ class Command(BaseCommand):
     def setup_indexes(self):
         management.call_command("es", operation="setup_indexes")
 
-    def drop_resources(self, packages_name):
-        drop_all_resources()
-
     def delete_indexes(self):
         management.call_command("es", operation="delete_indexes")
 
     def export_business_data(
-        self, data_dest=None, file_format=None, config_file=None, graph=None, single_file=False,
+        self, data_dest=None, file_format=None, config_file=None, graphid=None, single_file=False,
     ):
-        try:
-            resource_exporter = ResourceExporter(file_format, configs=config_file, single_file=single_file)
-        except KeyError as e:
-            utils.print_message("{0} is not a valid export file format.".format(file_format))
+        graphids = []
+        if graphid is False and file_format == "json":
+            graphids = [
+                str(graph.graphid)
+                for graph in models.GraphModel.objects.filter(isresource=True).exclude(pk=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID)
+            ]
+        if graphid is False and file_format != "json":
+            utils.print_message("Exporting data for all graphs is currently only supported for the json format")
             sys.exit()
-        except MissingConfigException as e:
-            utils.print_message("No mapping file specified. Please rerun this command with the '-c' parameter populated.")
-            sys.exit()
-
-        if data_dest != "":
-            try:
-                data = resource_exporter.export(graph_id=graph, resourceinstanceids=None)
-            except MissingGraphException as e:
-
-                print(utils.print_message("No resource graph specified. Please rerun this command with the '-g' parameter populated."))
-
-                sys.exit()
-
-            for file in data:
-                with open(os.path.join(data_dest, file["name"]), "w") as f:
-                    bufsize = 16 * 1024
-                    file["outputfile"].seek(0)
-                    shutil.copyfileobj(file["outputfile"], f, bufsize)
-                # with open(os.path.join(data_dest, file['name']), 'wb') as f:
-                #     f.write(file['outputfile'].getvalue())
+        if graphid:
+            graphids.append(graphid)
+        if os.path.exists(data_dest):
+            safe_characters = (" ", ".", "_", "-")
+            for graphid in graphids:
+                try:
+                    resource_exporter = ResourceExporter(
+                        file_format, configs=config_file, single_file=single_file
+                    )  # New exporter needed for each graphid, else previous data is appended with each subsequent graph
+                    data = resource_exporter.export(graph_id=graphid, resourceinstanceids=None)
+                    for file in data:
+                        with open(
+                            os.path.join(
+                                data_dest,
+                                "".join(char if (char.isalnum() or char in safe_characters) else "-" for char in file["name"]).rstrip(),
+                            ),
+                            "w",
+                        ) as f:
+                            file["outputfile"].seek(0)
+                            shutil.copyfileobj(file["outputfile"], f, 16 * 1024)
+                except KeyError:
+                    utils.print_message("{0} is not a valid export file format.".format(file_format))
+                    sys.exit()
+                except MissingConfigException:
+                    utils.print_message("No mapping file specified. Please rerun this command with the '-c' parameter populated.")
+                    sys.exit()
         else:
-            utils.print_message("No destination directory specified. Please rerun this command with the '-d' parameter populated.")
+            utils.print_message(
+                "The destination is unspecified or invalid. Please rerun this command with the '-d' parameter populated with a valid path."
+            )
             sys.exit()
 
-    def import_reference_data(self, data_source, overwrite="ignore", stage="stage", bulk_load=False):
+    def import_reference_data(self, data_source, overwrite="ignore", stage="stage", prevent_indexing=False):
         if overwrite == "":
             overwrite = "overwrite"
 
         skos = SKOSReader()
         rdf = skos.read_file(data_source)
-        ret = skos.save_concepts_from_skos(rdf, overwrite, stage)
+        ret = skos.save_concepts_from_skos(rdf, overwrite, stage, prevent_indexing)
 
     def import_business_data(
-        self, data_source, config_file=None, overwrite=None, bulk_load=False, create_concepts=False, use_multiprocessing=False, force=False
+        self,
+        data_source,
+        config_file=None,
+        overwrite=None,
+        bulk_load=False,
+        create_concepts=False,
+        use_multiprocessing=False,
+        force=False,
+        prevent_indexing=False,
     ):
         """
         Imports business data from all formats. A config file (mapping file) is required for .csv format.
@@ -947,6 +1078,7 @@ will be very jumbled."""
                         create_concepts=create_concepts,
                         create_collections=create_collections,
                         use_multiprocessing=use_multiprocessing,
+                        prevent_indexing=prevent_indexing,
                     )
                 else:
                     utils.print_message("No file found at indicated location: {0}".format(source))
@@ -997,18 +1129,11 @@ will be very jumbled."""
             data_source = [data_source]
 
         for path in data_source:
-            if os.path.isabs(path):
-                if os.path.isfile(os.path.join(path)):
-                    relations = csv.DictReader(open(path, "r"))
-                    RelationImporter().import_relations(relations)
-                else:
-                    utils.print_message("No file found at indicated location: {0}".format(path))
-                    sys.exit()
+            if os.path.isfile(os.path.join(path)):
+                relations = csv.DictReader(open(path, "r"))
+                RelationImporter().import_relations(relations)
             else:
-                utils.print_message(
-                    "ERROR: The specified file path appears to be relative. \
-                    Please rerun command with an absolute file path."
-                )
+                utils.print_message("No file found at indicated location: {0}".format(path))
                 sys.exit()
 
     def import_graphs(self, data_source="", overwrite_graphs=True):
@@ -1023,27 +1148,48 @@ will be very jumbled."""
         if isinstance(data_source, str):
             data_source = [data_source]
 
+        errors = []
         for path in data_source:
             if os.path.isfile(os.path.join(path)):
                 print(os.path.join(path))
                 with open(path, "rU") as f:
                     archesfile = JSONDeserializer().deserialize(f)
-                    ResourceGraphImporter(archesfile["graph"], overwrite_graphs)
+                    errs, importer = ResourceGraphImporter(archesfile["graph"], overwrite_graphs)
+                    errors.extend(errs)
             else:
                 file_paths = [file_path for file_path in os.listdir(path) if file_path.endswith(".json")]
                 for file_path in file_paths:
                     print(os.path.join(path, file_path))
                     with open(os.path.join(path, file_path), "rU") as f:
                         archesfile = JSONDeserializer().deserialize(f)
-                        ResourceGraphImporter(archesfile["graph"], overwrite_graphs)
+                        errs, importer = ResourceGraphImporter(archesfile["graph"], overwrite_graphs)
+                        errors.extend(errs)
+        for e in errors:
+            utils.print_message(e)
 
-    def export_graphs(self, data_dest="", graphs=""):
+    def export_graphs(self, data_dest="", graphs="", graphtype=""):
         """
         Exports graphs to arches.json.
 
         """
         if data_dest != "":
-            graphs = [graph.strip() for graph in graphs.split(",")]
+            if not graphs:
+                if not graphtype:
+                    graphs = [
+                        str(graph["graphid"])
+                        for graph in models.GraphModel.objects.exclude(graphid=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID).values("graphid")
+                    ]
+                elif graphtype == "branch":
+                    graphs = [str(graph["graphid"]) for graph in models.GraphModel.objects.filter(isresource=False).values("graphid")]
+                elif graphtype == "resource":
+                    graphs = [
+                        str(graph["graphid"])
+                        for graph in models.GraphModel.objects.filter(isresource=True)
+                        .exclude(graphid=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID)
+                        .values("graphid")
+                    ]
+            else:
+                graphs = [graph.strip() for graph in graphs.split(",")]
             for graph in ResourceGraphExporter.get_graphs_for_export(graphids=graphs)["graph"]:
                 graph_name = graph["name"].replace("/", "-")
                 with open(os.path.join(data_dest, graph_name + ".json"), "wb") as f:
@@ -1067,7 +1213,7 @@ will be very jumbled."""
         if data_dest != "":
             data = resource_exporter.export(graph_id=graph)
             for file in data:
-                with open(os.path.join(data_dest, file["name"]), "wb") as f:
+                with open(os.path.join(data_dest, file["name"]), "w") as f:
                     f.write(file["outputfile"].getvalue())
         else:
             utils.print_message("No destination directory specified. Please rerun this command with the '-d' parameter populated.")

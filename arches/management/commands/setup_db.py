@@ -186,22 +186,29 @@ To create it, use:
             self.drop_and_recreate_db(cursor)
         else:
             self.reset_db(cursor)
-
-        # delete and setup initial Elasticsearch indexes
+        # delete existing indexes
         management.call_command("es", operation="delete_indexes")
+
+        # setup initial Elasticsearch indexes
         management.call_command("es", operation="setup_indexes")
 
-        # run all migrations
         management.call_command("migrate")
+
+        createcachetable = False
+        for k, v in settings.CACHES.items():
+            if v["BACKEND"] == "django.core.cache.backends.db.DatabaseCache":
+                createcachetable = True
+        if createcachetable:
+            management.call_command("createcachetable")
 
         # import system settings graph and any saved system settings data
         settings_graph = os.path.join(settings.ROOT_DIR, "db", "system_settings", "Arches_System_Settings_Model.json")
         management.call_command("packages", operation="import_graphs", source=settings_graph)
 
         settings_data = os.path.join(settings.ROOT_DIR, "db", "system_settings", "Arches_System_Settings.json")
-        management.call_command("packages", operation="import_business_data", source=settings_data, overwrite=True)
+        management.call_command("packages", operation="import_business_data", source=settings_data, overwrite="overwrite")
 
         settings_data_local = settings.SYSTEM_SETTINGS_LOCAL_PATH
 
         if os.path.isfile(settings_data_local):
-            management.call_command("packages", operation="import_business_data", source=settings_data_local, overwrite=True)
+            management.call_command("packages", operation="import_business_data", source=settings_data_local, overwrite="overwrite")

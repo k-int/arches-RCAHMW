@@ -22,11 +22,29 @@ from arches.app.utils.decorators import group_required
 from arches.app.utils.index_database import index_resources_by_type
 from arches.app.utils.response import JSONResponse
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
+from django.shortcuts import redirect
+from arches.app.models import models
+from arches.app.models.system_settings import settings
+from django.core.exceptions import PermissionDenied
 
 
 @method_decorator(group_required("Graph Editor"), name="dispatch")
 class ReIndexResources(View):
     def post(self, request):
         data = JSONDeserializer().deserialize(request.body)
-        index_resources_by_type(data["graphids"], clear_index=False, batch_size=4000)
+        index_resources_by_type(data["graphids"], clear_index=False, batch_size=4000, quiet=True)
         return JSONResponse(data)
+
+
+class FileView(View):
+    def get(self, request, fileid=None):
+        file = models.File.objects.get(pk=fileid)
+        path = file.path.url
+        if settings.RESTRICT_MEDIA_ACCESS:
+            permission = request.user.has_perm("read_nodegroup", file.tile.nodegroup)
+            permitted = permission is None or permission is True
+            if permitted:
+                return redirect(path)
+            else:
+                raise PermissionDenied()
+        return redirect(path)

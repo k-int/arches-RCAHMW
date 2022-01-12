@@ -16,7 +16,15 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+from arches.app.models import models
 from arches.app.search.search_engine_factory import SearchEngineFactory
+from django.db.utils import ProgrammingError
+
+
+CONCEPTS_INDEX = "concepts"
+TERMS_INDEX = "terms"
+RESOURCES_INDEX = "resources"
+RESOURCE_RELATIONS_INDEX = "resource_relations"
 
 
 def prepare_terms_index(create=False):
@@ -47,7 +55,7 @@ def prepare_terms_index(create=False):
 
     if create:
         se = SearchEngineFactory().create()
-        se.create_index(index="terms", body=index_settings)
+        se.create_index(index=TERMS_INDEX, body=index_settings)
 
     return index_settings
 
@@ -82,19 +90,19 @@ def prepare_concepts_index(create=False):
 
     if create:
         se = SearchEngineFactory().create()
-        se.create_index(index="concepts", body=index_settings)
+        se.create_index(index=CONCEPTS_INDEX, body=index_settings)
 
     return index_settings
 
 
 def delete_terms_index():
     se = SearchEngineFactory().create()
-    se.delete_index(index="terms")
+    se.delete_index(index=TERMS_INDEX)
 
 
 def delete_concepts_index():
     se = SearchEngineFactory().create()
-    se.delete_index(index="concepts")
+    se.delete_index(index=CONCEPTS_INDEX)
 
 
 def prepare_search_index(create=False):
@@ -104,7 +112,11 @@ def prepare_search_index(create=False):
     """
 
     index_settings = {
-        "settings": {"analysis": {"analyzer": {"folding": {"tokenizer": "standard", "filter": ["lowercase", "asciifolding"]}}}},
+        "settings": {
+            "analysis": {"analyzer": {"folding": {"tokenizer": "standard", "filter": ["lowercase", "asciifolding"]}}},
+            "index.mapping.total_fields.limit": 50000,
+            "index.mapping.nested_objects.limit": 50000,
+        },
         "mappings": {
             "_doc": {
                 "properties": {
@@ -125,6 +137,16 @@ def prepare_search_index(create=False):
                             "parenttile_id": {"type": "keyword"},
                             "resourceinstanceid_id": {"type": "keyword"},
                             "provisionaledits": {"enabled": False},
+                            "data": {"properties": {}},
+                        },
+                    },
+                    "permissions": {
+                        "type": "nested",
+                        "properties": {
+                            "users_without_read_perm": {"type": "integer"},
+                            "users_without_edit_perm": {"type": "integer"},
+                            "users_without_delete_perm": {"type": "integer"},
+                            "users_with_no_access": {"type": "integer"},
                         },
                     },
                     "strings": {
@@ -183,7 +205,7 @@ def prepare_search_index(create=False):
                     "dates": {
                         "type": "nested",
                         "properties": {
-                            "date": {"type": "float"},
+                            "date": {"type": "integer"},
                             "nodegroup_id": {"type": "keyword"},
                             "nodeid": {"type": "keyword"},
                             "provisional": {"type": "boolean"},
@@ -200,7 +222,7 @@ def prepare_search_index(create=False):
                     "date_ranges": {
                         "type": "nested",
                         "properties": {
-                            "date_range": {"type": "float_range"},
+                            "date_range": {"type": "integer_range"},
                             "nodegroup_id": {"type": "keyword"},
                             "provisional": {"type": "boolean"},
                         },
@@ -209,17 +231,28 @@ def prepare_search_index(create=False):
             }
         },
     }
+    try:
+        from arches.app.datatypes.datatypes import DataTypeFactory
+        datatype_factory = DataTypeFactory()
+        data = index_settings["mappings"]["_doc"]["properties"]["tiles"]["properties"]["data"]["properties"]
+        for node in models.Node.objects.all():
+            datatype = datatype_factory.get_instance(node.datatype)
+            datatype_mapping = datatype.default_es_mapping()
+            if datatype_mapping and datatype_factory.datatypes[node.datatype].defaultwidget:
+                data[str(node.nodeid)] = datatype_mapping
+    except ProgrammingError:
+        print("Skipping datatype mappings because the datatypes table is not yet available")
 
     if create:
         se = SearchEngineFactory().create()
-        se.create_index(index="resources", body=index_settings)
+        se.create_index(index=RESOURCES_INDEX, body=index_settings)
 
     return index_settings
 
 
 def delete_search_index():
     se = SearchEngineFactory().create()
-    se.delete_index(index="resources")
+    se.delete_index(index=RESOURCES_INDEX)
 
 
 def prepare_resource_relations_index(create=False):
@@ -235,10 +268,17 @@ def prepare_resource_relations_index(create=False):
                     "resourcexid": {"type": "keyword"},
                     "notes": {"type": "text"},
                     "relationshiptype": {"type": "keyword"},
+                    "inverserelationshiptype": {"type": "keyword"},
                     "resourceinstanceidfrom": {"type": "keyword"},
+                    "resourceinstancefrom_graphid": {"type": "keyword"},
                     "resourceinstanceidto": {"type": "keyword"},
+                    "resourceinstanceto_graphid": {"type": "keyword"},
                     "created": {"type": "keyword"},
                     "modified": {"type": "keyword"},
+                    "datestarted": {"type": "date"},
+                    "dateended": {"type": "date"},
+                    "tileid": {"type": "keyword"},
+                    "nodeid": {"type": "keyword"},
                 }
             }
         }
@@ -246,11 +286,11 @@ def prepare_resource_relations_index(create=False):
 
     if create:
         se = SearchEngineFactory().create()
-        se.create_index(index="resource_relations", body=index_settings)
+        se.create_index(index=RESOURCE_RELATIONS_INDEX, body=index_settings)
 
     return index_settings
 
 
 def delete_resource_relations_index():
     se = SearchEngineFactory().create()
-    se.delete_index(index="resource_relations")
+    se.delete_index(index=RESOURCE_RELATIONS_INDEX)

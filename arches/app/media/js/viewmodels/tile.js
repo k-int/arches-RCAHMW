@@ -132,6 +132,7 @@ define([
                     handler(self);
                 });
                 params.provisionalTileViewModel.selectedProvisionalEdit(undefined);
+                delete self.noDefaults;
             },
             getAttributes: function() {
                 var tileData = self.data ? koMapping.toJS(self.data) : {};
@@ -229,7 +230,7 @@ define([
                     loading(false);
                 });
             },
-            deleteTile: function(onFail) {
+            deleteTile: function(onFail, onSuccess) {
                 loading(true);
                 $.ajax({
                     type: "DELETE",
@@ -238,6 +239,9 @@ define([
                 }).done(function(response) {
                     params.card.tiles.remove(self);
                     selection(params.card);
+                    if (typeof onSuccess === 'function') {
+                        onSuccess(response);
+                    }
                 }).fail(function(response) {
                     if (typeof onFail === 'function') {
                         onFail(response);

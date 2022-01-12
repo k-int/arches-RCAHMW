@@ -90,7 +90,7 @@ class Query(Dsl):
         self.scroll = kwargs.pop("scroll", None)
         self.prepare()
         if self.scroll is None:
-            return self.se.search(index=index, body=self.dsl)
+            return self.se.search(index=index, body=self.dsl, id=kwargs.get("id", None))
         else:
             return self.se.search(index=index, body=self.dsl, scroll=self.scroll)
 
@@ -338,6 +338,22 @@ class Exists(Dsl):
     def __init__(self, **kwargs):
         self.field = kwargs.pop("field", "")
         self.dsl = {"exists": {"field": self.field}}
+
+
+class Ids(Dsl):
+    """
+    https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
+
+    Keyword Arguments:
+    ids -- a single document id as a string, or a list of document ids
+
+    """
+
+    def __init__(self, **kwargs):
+        self.ids = kwargs.pop("ids", None)
+        if not isinstance(self.ids, list):
+            self.ids = [self.ids]
+        self.dsl = {"ids": {"values": self.ids}}
 
 
 class Aggregation(Dsl):

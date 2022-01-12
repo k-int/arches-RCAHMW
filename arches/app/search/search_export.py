@@ -18,9 +18,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import csv
 import datetime
+import logging
 from io import StringIO
 from io import BytesIO
 from django.core.files import File
+from django.utils.translation import ugettext as _
 from arches.app.models import models
 from arches.app.models.system_settings import settings
 from arches.app.datatypes.datatypes import DataTypeFactory
@@ -30,6 +32,8 @@ from arches.app.utils.data_management.resources.exporter import ResourceExporter
 from arches.app.utils.geo_utils import GeoUtils
 import arches.app.utils.zip as zip_utils
 from arches.app.views import search as SearchView
+
+logger = logging.getLogger(__name__)
 
 
 class SearchResultsExporter(object):
@@ -80,6 +84,17 @@ class SearchResultsExporter(object):
                 headers.append("resourceid")
                 ret.append(self.to_csv(resources["output"], headers=headers, name=graph.name))
             if format == "shp":
+                headers = graph.node_set.filter(exportable=True).values("fieldname", "datatype", "name")[::1]
+                missing_field_names = []
+                for header in headers:
+                    if not header["fieldname"]:
+                        missing_field_names.append(header["name"])
+                    header.pop("name")
+                if len(missing_field_names) > 0:
+                    message = _("Shapefile are fieldnames required for the following nodes: {0}".format(", ".join(missing_field_names)))
+                    logger.error(message)
+                    raise (Exception(message))
+
                 headers = graph.node_set.filter(exportable=True).values("fieldname", "datatype")[::1]
                 headers.append({"fieldname": "resourceid", "datatype": "str"})
                 ret += self.to_shp(resources["output"], headers=headers, name=graph.name)
@@ -97,7 +112,7 @@ class SearchResultsExporter(object):
         """
         Writes a list of file like objects out to a zip file
         """
-        zip_stream = zip_utils.create_zip_file(files_for_export)
+        zip_stream = zip_utils.create_zip_file(files_for_export, "outputfile")
         today = datetime.datetime.now().isoformat()
         name = f"{settings.APP_NAME}_{today}.zip"
         search_history_obj = models.SearchExportHistory.objects.get(pk=export_info.searchexportid)
@@ -162,7 +177,7 @@ class SearchResultsExporter(object):
                     label = node.fieldname if use_fieldname is True else node.name
 
                     if compact:
-                        if node.datatype == "geojson-feature-collection":
+                        if node.datatype == "geojson-feature-collection" and node_value:
                             has_geometry = True
                             feature_collections = self.get_feature_collections(tile, node, feature_collections, label, datatype)
                         else:
@@ -190,10 +205,6 @@ class SearchResultsExporter(object):
         resource_json = self.create_resource_json(tiles)
         return flatten_dict(resource_json)
 
-    def sort_by_geometry_type(instance):
-        instances = {"polygon": [], "polyline": [], "point": []}
-        return instances
-
     def to_csv(self, instances, headers, name):
         dest = StringIO()
         csvwriter = csv.DictWriter(dest, delimiter=",", fieldnames=headers)
@@ -203,7 +214,6 @@ class SearchResultsExporter(object):
         return {"name": f"{name}.csv", "outputfile": dest}
 
     def to_shp(self, instances, headers, name):
-        print(f"{name} = {len(instances)}")
         shape_exporter = ResourceExporter(format="shp")
         dest = shape_exporter.writer.create_shapefiles(instances, headers, name)
         return dest

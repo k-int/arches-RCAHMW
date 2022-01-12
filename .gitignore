@@ -1,7 +1,9 @@
 *.pyc
 virtualenv/ENV*
+env
 tests/elasticsearch
 tests/logs
+tests/fixtures/testing_prj/testing_prj/media/packages/*
 arches/install/elasticsearch-*.zip
 build
 arches.egg*
@@ -35,3 +37,5 @@ djcp.sh
 .vscode
 .DS_Store
 pip-wheel-metadata
+.eggs
+*.code-workspace

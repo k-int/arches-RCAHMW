@@ -19,10 +19,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 import os
 import inspect
 
-
 try:
+    from django.utils.translation import gettext_lazy as _
     from corsheaders.defaults import default_headers
-except ImportError:  # unable to import corsheaders prior to installing requirements.txt in setup.py
+except ImportError:  # unable to import prior to installing requirements.txt in setup.py
     pass
 
 #########################################
@@ -56,7 +56,6 @@ COUCHDB_URL = "http://admin:admin@localhost:5984"  # defaults to localhost:5984
 ANONYMOUS_USER_NAME = None
 
 ELASTICSEARCH_HTTP_PORT = 9200  # this should be in increments of 200, eg: 9400, 9600, 9800
-ELASTICSEARCH_TEMP_HTTP_ENDPOINT = "http://localhost:9800"
 SEARCH_BACKEND = "arches.app.search.search.SearchEngine"
 # see http://elasticsearch-py.readthedocs.org/en/master/api.html#elasticsearch.Elasticsearch
 ELASTICSEARCH_HOSTS = [{"host": "localhost", "port": ELASTICSEARCH_HTTP_PORT}]
@@ -76,6 +75,10 @@ ELASTICSEARCH_CUSTOM_INDEXES = []
 #     'name': 'my_new_custom_index'
 # }]
 
+
+KIBANA_URL = "http://localhost:5601/"
+KIBANA_CONFIG_BASEPATH = "kibana"  # must match Kibana config.yml setting (server.basePath) but without the leading slash,
+# also make sure to set server.rewriteBasePath: true
 USE_SEMANTIC_RESOURCE_RELATIONSHIPS = True
 ROOT_DIR = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 PACKAGE_ROOT = ROOT_DIR
@@ -94,6 +97,9 @@ RESOURCE_FORMATTERS = {
     "nt": "arches.app.utils.data_management.resources.formats.rdffile.RdfWriter",
     "trix": "arches.app.utils.data_management.resources.formats.rdffile.RdfWriter",
 }
+
+# Hide nodes and cards in a report that have no data
+HIDE_EMPTY_NODES_IN_REPORT = False
 
 # Set the ontolgoy namespace prefixes to use in the UI, set the namespace to '' omit a prefix
 # Users can also override existing namespaces as well if you like
@@ -115,6 +121,7 @@ ONTOLOGY_DIR = os.path.join(ROOT_DIR, "ontologies")
 # to use in preference for the URI of a concept. If there is no match, the default
 # Arches host URI will be used (eg http://localhost/concepts/123f323f-...)
 PREFERRED_CONCEPT_SCHEMES = ["http://vocab.getty.edu/aat/", "http://www.cidoc-crm.org/cidoc-crm/"]
+JSONLD_CONTEXT_CACHE_TIMEOUT = 43800  # in minutes (43800 minutes ~= 1 month)
 
 # This is the namespace to use for export of data (for RDF/XML for example)
 # Ideally this should point to the url where you host your site
@@ -142,9 +149,11 @@ SESSION_COOKIE_NAME = "arches"
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  #<-- Only need to uncomment this for testing without an actual email server
 # EMAIL_USE_TLS = True
 # EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_HOST_USER = 'xxxx@xxx.com'
+EMAIL_HOST_USER = "xxxx@xxx.com"
 # EMAIL_HOST_PASSWORD = 'xxxxxxx'
 # EMAIL_PORT = 587
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 POSTGIS_VERSION = (3, 0, 0)
 
@@ -162,23 +171,44 @@ USE_I18N = True
 TIME_ZONE = "America/Chicago"
 USE_TZ = False
 
-# Default Language code for this installation. All choices can be found here:
-# http://www.i18nguy.com/unicode/language-identifiers.html
 
 # see https://docs.djangoproject.com/en/1.9/topics/i18n/translation/#how-django-discovers-language-preference
 # to see how LocaleMiddleware tries to determine the user's language preference
 # (make sure to check your accept headers as they will override the LANGUAGE_CODE setting!)
 # also see get_language_from_request in django.utils.translation.trans_real.py
 # to see how the language code is derived in the actual code
-#
-# make sure to uncomment the Middleware class 'LocaleMiddleware'
-#
-# https://docs.djangoproject.com/en/1.9/ref/django-admin/#makemessages
-#
-# run
-# django-admin.py makemessages --ignore=virtualenv/* --local=en --extension=htm,py
+
+####### TO GENERATE .PO FILES DO THE FOLLOWING ########
+# run the following commands
+# language codes used in the command should be in the form (which is slightly different
+# form the form used in the LANGUAGE_CODE and LANGUAGES settings below):
+# --local={countrycode}_{REGIONCODE} <-- countrycode is lowercase, regioncode is uppercase, also notice the underscore instead of hyphen
+# commands to run (to generate files for "British English, German, and Spanish"):
+# django-admin.py makemessages --ignore=env/* --local=de --local=en --local=en_GB --local=es  --extension=htm,py
 # django-admin.py compilemessages
-LANGUAGE_CODE = "en-US"
+
+
+# default language of the application
+# language code needs to be all lower case with the form:
+# {langcode}-{regioncode} eg: en, en-gb ....
+# a list of language codes can be found here http://www.i18nguy.com/unicode/language-identifiers.html
+LANGUAGE_CODE = "en"
+
+# list of languages to display in the language switcher,
+# if left empty or with a single entry then the switch won't be displayed
+# language codes need to be all lower case with the form:
+# {langcode}-{regioncode} eg: en, en-gb ....
+# a list of language codes can be found here http://www.i18nguy.com/unicode/language-identifiers.html
+LANGUAGES = [
+    # ("de", _("German")),
+    # ("en", _("English")),
+    # ("en-gb", _("British English")),
+    # ("es", _("Spanish")),
+    # ("ar", _("Arabic")),
+]
+
+# override this to permenantly display/hide the language switcher
+SHOW_LANGUAGE_SWITCH = len(LANGUAGES) > 1
 
 # the path where your translation strings are stored
 LOCALE_PATHS = [
@@ -198,6 +228,11 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 15728640
 # URL that handles the media served from MEDIA_ROOT, used for managing stored files.
 # It must end in a slash if set to a non-empty value.
 MEDIA_URL = "/files/"
+
+# By setting RESTRICT_MEDIA_ACCESS to True, media file requests will be
+# served by Django rather than your web server (e.g. Apache). This allows file requests to be checked against nodegroup permissions.
+# However, this will adversely impact performace when serving large files or during periods of high traffic.
+RESTRICT_MEDIA_ACCESS = False
 
 # Absolute path to the directory static files should be collected to.
 # Don't put anything in this directory yourself; store your static files
@@ -242,8 +277,14 @@ OAUTH2_PROVIDER = {"ACCESS_TOKEN_EXPIRE_SECONDS": 36000}
 
 # This is the client id you get when you register a new application
 # see https://arches.readthedocs.io/en/stable/api/#authentication
-MOBILE_OAUTH_CLIENT_ID = ""  #'9JCibwrWQ4hwuGn5fu2u1oRZSs9V6gK8Vu8hpRC4'
+MOBILE_OAUTH_CLIENT_ID = ""  # '9JCibwrWQ4hwuGn5fu2u1oRZSs9V6gK8Vu8hpRC4'
 MOBILE_DEFAULT_ONLINE_BASEMAP = {"default": "mapbox://styles/mapbox/streets-v9"}
+MOBILE_IMAGE_SIZE_LIMITS = {
+    # These limits are meant to be approximates. Expect to see uploaded sizes range +/- 20%
+    # Not to exceed the limit defined in DATA_UPLOAD_MAX_MEMORY_SIZE
+    "full": min(1500000, DATA_UPLOAD_MAX_MEMORY_SIZE),  # ~1.5 Mb
+    "thumb": 400,  # max width/height in pixels, this will maintain the aspect ratio of the original image
+}
 
 TEMPLATES = [
     {
@@ -298,24 +339,24 @@ INSTALLED_APPS = (
     "revproxy",
     "corsheaders",
     "oauth2_provider",
-    "django_celery_results",
-    #'debug_toolbar'
+    "django_celery_results"
+    # 'debug_toolbar'
 )
 
 MIDDLEWARE = [
-    #'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     #'arches.app.utils.middleware.TokenMiddleware',
-    # 'django.middleware.locale.LocaleMiddleware',
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "arches.app.utils.middleware.ModifyAuthorizationHeader",
     "oauth2_provider.middleware.OAuth2TokenMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "arches.app.utils.middleware.SetAnonymousUser",
 ]
 
@@ -335,7 +376,11 @@ except Exception as e:
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {"console": {"format": "%(asctime)s %(name)-12s %(levelname)-8s %(message)s",},},
+    "formatters": {
+        "console": {
+            "format": "%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+        },
+    },
     "handlers": {
         "file": {
             "level": "WARNING",  # DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -386,7 +431,9 @@ if DEBUG is True:
 # group to assign users who self sign up via the web ui
 USER_SIGNUP_GROUP = "Crowdsource Editor"
 
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.memcached.MemcachedCache", "LOCATION": "127.0.0.1:11211"}}
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"}}
+
+DEFAULT_RESOURCE_IMPORT_USER = {"username": "admin", "userid": 1}
 
 # Example of a custom time wheel configuration:
 # TIMEWHEEL_DATE_TIERS = {
@@ -409,7 +456,28 @@ TIMEWHEEL_DATE_TIERS = None
 # Identify the usernames and duration (seconds) for which you want to cache the timewheel
 CACHE_BY_USER = {"anonymous": 3600 * 24}
 
-DATE_IMPORT_EXPORT_FORMAT = "%Y-%m-%d"
+BYPASS_CARDINALITY_TILE_VALIDATION = True
+BYPASS_UNIQUE_CONSTRAINT_TILE_VALIDATION = False
+BYPASS_REQUIRED_VALUE_TILE_VALIDATION = False
+
+DATE_IMPORT_EXPORT_FORMAT = "%Y-%m-%d"  # Custom date format for dates imported from and exported to csv
+
+DATE_FORMATS = {
+    # Keep index values the same for formats in the python and javascript arrays.
+    "Python": ["%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%d %H:%M:%S%z", "%Y-%m-%d", "%Y-%m", "%Y", "-%Y"],
+    "JavaScript": ["YYYY-MM-DDTHH:mm:ss.sssZ", "YYYY-MM-DDTHH:mm:ssZ", "YYYY-MM-DD HH:mm:ssZ", "YYYY-MM-DD", "YYYY-MM", "YYYY", "-YYYY"],
+    "Elasticsearch": [
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZZZZZ",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        "yyyy-MM-dd'T'HH:mm:ssZZZZZ",
+        "yyyy-MM-dd'T'HH:mm:ssZ",
+        "yyyy-MM-dd HH:mm:ssZZZZZ",
+        "yyyy-MM-dd",
+        "yyyy-MM",
+        "yyyy",
+        "-yyyy",
+    ],
+}
 
 API_MAX_PAGE_SIZE = 500
 
@@ -525,7 +593,7 @@ ALLOWED_POPUP_HOSTS = []
 
 TILESERVER_URL = None
 
-CELERY_BROKER_URL = "amqp://guest:guest@localhost"
+CELERY_BROKER_URL = ""  # RabbitMQ --> "amqp://guest:guest@localhost",  Redis --> "redis://localhost:6379/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_BACKEND = "django-db"  # Use 'django-cache' if you want to use your cache as your backend
 CELERY_TASK_SERIALIZER = "json"
@@ -538,12 +606,80 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 AUTO_REFRESH_GEOM_VIEW = True
-TILE_CACHE_TIMEOUT = 600
+TILE_CACHE_TIMEOUT = 600  # seconds
+GRAPH_MODEL_CACHE_TIMEOUT = None  # seconds * hours * days = ~1mo
+
+RENDERERS = [
+    {
+        "name": "imagereader",
+        "title": "Image Reader",
+        "description": "Displays most image file types",
+        "id": "5e05aa2e-5db0-4922-8938-b4d2b7919733",
+        "iconclass": "fa fa-camera",
+        "component": "views/components/cards/file-renderers/imagereader",
+        "ext": "",
+        "type": "image/*",
+        "exclude": "tif,tiff,psd",
+    },
+    {
+        "name": "pdfreader",
+        "title": "PDF Reader",
+        "description": "Displays pdf files",
+        "id": "09dec059-1ee8-4fbd-85dd-c0ab0428aa94",
+        "iconclass": "fa fa-file",
+        "component": "views/components/cards/file-renderers/pdfreader",
+        "ext": "pdf",
+        "type": "application/pdf",
+        "exclude": "tif,tiff,psd",
+    },
+]
+
+# --- JSON LD sortorder generating functions --- #
+#
+# The functions in the array below will be called in the order given with the json-ld of the node
+#   that should have sortorder set on the resulting tile.  The config below sorts (meaninglessly)
+#   by URI, however more complex, use case specific functions can be implemented based on local
+#   ontology choice and requirements. Examples might be to sort by some value, language (as shown),
+#   type, classification or any other feature.
+# Set JSON_LD_SORT to True to enable the sorting
+#
+# Example: This would sort fields by P72_has_language, and apply an order based on the referenced
+#          entity in the lookup hash
+#
+# JSON_LD_SORT_LANGUAGE = {None: 10000, 'urn:uuid:38729dbe-6d1c-48ce-bf47-e2a18945600e': 0,
+#    "urn:uuid:a1d82c77-ebd6-4215-ab85-2c0b6a68a0e8": 1,
+#    'urn:uuid:7e6c493b-6434-4b3a-9513-02df44b78d24': 2}
+# JSON_LD_SORT_LANGUAGE_PROP = 'http://www.cidoc-crm.org/cidoc-crm/P72_has_language'
+#
+# def langsort(x):
+#    langs = x._json_ld.get(JSON_LD_SORT_LANGUAGE_PROP,[{'@id': None}])
+#    if not langs or not '@id' in langs[0]:
+#        langs = [{'@id':None}]
+#    scores = [JSON_LD_SORT_LANGUAGE.get(x['@id'], 10000) for x in langs]
+#    return min(scores)
+
+JSON_LD_SORT = False
+JSON_LD_SORT_FUNCTIONS = [lambda x: x.get("@id", "~")]
+
+# --- JSON LD run-time data manipulation --- #
+#
+# This function will be applied to the data to be loaded, immediately before it is sent to the
+#   Reader to be processed. This can correct any errors in the data, or potentially do some
+#   significant series of transformations to get the data into the right form for Arches
+
+
+def JSON_LD_FIX_DATA_FUNCTION(data, jsdata, model):
+    return jsdata
+
+
 ##########################################
 ### END RUN TIME CONFIGURABLE SETTINGS ###
 ##########################################
 
 try:
     from .settings_local import *
-except ImportError:
-    pass
+except ImportError as e:
+    try:
+        from arches.settings_local import *
+    except ImportError as e:
+        pass
