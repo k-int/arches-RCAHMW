@@ -1,0 +1,22 @@
+{
+    "resource_model_id": "bd498169-ec32-11e9-95b2-00224800327d",
+    "resource_model_name": "Communities",
+    "nodes": [
+        {
+            "arches_nodeid": "8c445ab4-8ad1-11ea-a4a3-000d3a86d704",
+            "arches_node_name": "community_cy",
+            "file_field_name": "community_cy",
+            "data_type": "concept",
+            "concept_export_value": "label",
+            "export": false
+        },
+        {
+            "arches_nodeid": "77c9c783-ec33-11e9-95b2-00224800327d",
+            "arches_node_name": "community_en",
+            "file_field_name": "community_en",
+            "data_type": "concept",
+            "concept_export_value": "label",
+            "export": false
+        }
+    ]
+}

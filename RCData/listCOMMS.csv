@@ -1,0 +1,853 @@
+ResourceID,community_en
+Comm1,Abbey Cwmhir
+Comm2,Abenbury
+Comm3,Aber
+Comm4,Aber Valley
+Comm5,Aberaeron
+Comm6,Aberaman
+Comm7,Aberavon
+Comm8,Abercarn
+Comm9,Abercynon
+Comm10,Aberdare
+Comm11,Aberdaron
+Comm12,Aberdovey
+Comm13,Aberedw
+Comm14,Aberffraw
+Comm15,Abergavenny
+Comm16,Abergele
+Comm17,Abergwili
+Comm18,Aberhafesp
+Comm19,Abernant
+Comm20,Aberporth
+Comm21,Abersychan
+Comm22,Abertillery
+Comm23,Aberwheeler
+Comm24,Aberystwyth
+Comm25,Acton
+Comm26,Adamsdown
+Comm27,Allt-yr-yn
+Comm28,Alway
+Comm29,Ambleston
+Comm30,Amlwch
+Comm31,Ammanford
+Comm32,Amroth
+Comm33,Angle
+Comm34,Argoed
+Comm35,Arthog
+Comm36,Bagillt
+Comm37,Baglan
+Comm38,Baglan Bay
+Comm39,Bala
+Comm40,Bangor
+Comm41,Bangor Is-y-coed
+Comm42,Banwy
+Comm43,Bargoed
+Comm44,Barmouth
+Comm45,Barry
+Comm46,Bausley with Criggion
+Comm47,Beaufort
+Comm48,Beaumaris
+Comm49,Beddgelert
+Comm50,Bedlinog
+Comm51,Bedwas
+Comm52,Beechwood
+Comm53,Beguildy
+Comm54,Berriew
+Comm55,Bethesda
+Comm56,Bettws
+Comm57,Betws
+Comm58,Betws Garmon
+Comm59,Betws Gwerfil Goch
+Comm60,Betws Yn Rhos
+Comm61,Betws-y-coed
+Comm62,Beulah
+Comm63,Birchgrove
+Comm64,Bishopston
+Comm65,Bishton
+Comm66,Blackwood
+Comm67,Blaenavon
+Comm68,Blaengwrach
+Comm69,Blaenhonddan
+Comm70,Blaenrheidol
+Comm71,Bodedern
+Comm72,Bodelwyddan
+Comm73,Bodfari
+Comm74,Bodffordd
+Comm75,Bodorgan
+Comm76,Boncath
+Comm77,Bontnewydd
+Comm78,Bonymaen
+Comm79,Borth
+Comm80,Botwnnog
+Comm81,Brackla
+Comm82,Brawdy
+Comm83,Brecon
+Comm84,Bridgend
+Comm85,Brithdir and Llanfachreth
+Comm86,Briton Ferry
+Comm87,Bro Garmon
+Comm88,Bro Machno
+Comm89,Bronington
+Comm90,Bronllys
+Comm91,Bronwydd
+Comm92,Broughton
+Comm93,Broughton and Bretton
+Comm94,Brymbo
+Comm95,Bryn
+Comm96,Bryn-crug
+Comm97,Bryneglwys
+Comm98,Brynford
+Comm99,Bryngwran
+Comm100,Brynmawr
+Comm101,Buan
+Comm102,Buckley
+Comm103,Builth
+Comm104,Burton
+Comm105,Butetown
+Comm106,Cadfarch
+Comm107,Caerau
+Comm108,Caerhun
+Comm109,Caerleon
+Comm110,Caernarfon
+Comm111,Caerphilly
+Comm112,Caersws
+Comm113,Caerwent
+Comm114,Caerwys
+Comm115,Caia Park
+Comm116,Caldicot
+Comm117,Camrose
+Comm118,Canton
+Comm119,Capel Curig
+Comm120,Cardigan
+Comm121,Carew
+Comm122,Carmarthen
+Comm123,Carno
+Comm124,Carreghofa
+Comm125,Castle
+Comm126,Castle Caereinion
+Comm127,Castlemartin
+Comm128,Cathays
+Comm129,Cefn
+Comm130,Cefn Cribwr
+Comm131,Cefn Fforest
+Comm132,Cefn Sidan
+Comm133,Cefnmeiriadog
+Comm134,Ceiriog Ucha
+Comm135,Cenarth
+Comm136,Cerrigydrudion
+Comm137,Ceulanamaesmawr
+Comm138,Chepstow
+Comm139,Chirk
+Comm140,Churchstoke
+Comm141,Cilcain
+Comm142,Cilgerran
+Comm143,Ciliau Aeron
+Comm144,Cilmery
+Comm145,Cilybebyll
+Comm146,Cilycwm
+Comm147,Cilymaenllwyd
+Comm148,Clocaenog
+Comm149,Clydach
+Comm150,Clydau
+Comm151,Clynderwen
+Comm152,Clyne and Melincourt
+Comm153,Clynnog
+Comm154,Clyro
+Comm155,Cockett
+Comm156,Coedffranc
+Comm157,Coedkernew
+Comm158,Coedpoeth
+Comm159,Coity Higher
+Comm160,Colwinston
+Comm161,Colwyn Bay
+Comm162,Connah's Quay
+Comm163,Conwy
+Comm164,Corris
+Comm165,Corwen
+Comm166,Cosheston
+Comm167,Cowbridge with Llanblethian
+Comm168,Coychurch Higher
+Comm169,Coychurch Lower
+Comm170,Cray
+Comm171,Criccieth
+Comm172,Crickhowell
+Comm173,Croesyceiliog
+Comm174,Crosskeys
+Comm175,Crucorney
+Comm176,Crumlin
+Comm177,Crymych
+Comm178,Crynant
+Comm179,Cwm
+Comm180,Cwm Cadnant
+Comm181,Cwm Clydach
+Comm182,Cwm Gwaun
+Comm183,Cwmamman
+Comm184,Cwmavon
+Comm185,Cwmbach
+Comm186,Cwmbran Central
+Comm187,Cwmbwrla
+Comm188,Cwmllynfell
+Comm189,Cyfarthfa
+Comm190,Cyffylliog
+Comm191,Cylch-y-garn
+Comm192,Cymmer
+Comm193,Cyncoed
+Comm194,Cynffig
+Comm195,Cynwyd
+Comm196,Cynwyl Elfed
+Comm197,Cynwyl Gaeo
+Comm198,Dale
+Comm199,Darran Valley
+Comm200,Denbigh
+Comm201,Derwen
+Comm202,Devauden
+Comm203,Dinas Cross
+Comm204,Dinas Powys
+Comm205,Disserth and Trecoed
+Comm206,Dolbenmaen
+Comm207,Dolgarrog
+Comm208,Dolgellau
+Comm209,Dolwyddelan
+Comm210,Dowlais
+Comm211,Duhonw
+Comm212,Dunvant
+Comm213,Dwyriw
+Comm214,Dyffryn Ardudwy
+Comm215,Dyffryn Arth
+Comm216,Dyffryn Cennen
+Comm217,Dyffryn Clydach
+Comm218,Dyserth
+Comm219,East Williamston
+Comm220,Ebbw Vale
+Comm221,Efenechtyd
+Comm222,Eglwysbach
+Comm223,Eglwyscummin
+Comm224,Eglwyswrw
+Comm225,Ely
+Comm226,Erbistock
+Comm227,Erwood
+Comm228,Esclusham
+Comm229,Ewenny
+Comm230,Faenor
+Comm231,Fairwater
+Comm232,Felin-fach
+Comm233,Ferndale
+Comm234,Ffestiniog
+Comm235,Fishguard and Goodwick
+Comm236,Flint
+Comm237,Forden
+Comm238,Freystrop
+Comm239,Gabalfa
+Comm240,Gaer
+Comm241,Ganllwyd
+Comm242,Garw Valley
+Comm243,Gelligaer
+Comm244,Geneu'r Glyn
+Comm245,Gilfach Goch
+Comm246,Gladestry
+Comm247,Glantwymyn
+Comm248,Glasbury
+Comm249,Glascwm
+Comm250,Glyn Tarell
+Comm251,Glyncorrwg
+Comm252,Glynneath
+Comm253,Glyntraian
+Comm254,Goetre Fawr
+Comm255,Goldcliff
+Comm256,Gorseinon
+Comm257,Gorslas
+Comm258,Gowerton
+Comm259,Graig
+Comm260,Grangetown
+Comm261,Gresford
+Comm262,Grosmont
+Comm263,Grovesend
+Comm264,Guilsfield
+Comm265,Gurnos
+Comm266,Gwaun-cae-gurwen
+Comm267,Gwehelog Fawr
+Comm268,Gwernaffield
+Comm269,Gwernyfed
+Comm270,Gwernymynydd
+Comm271,Gwersyllt
+Comm272,Gwyddelwern
+Comm273,Halkyn
+Comm274,Hanmer
+Comm275,Harlech
+Comm276,Haverfordwest
+Comm277,Hawarden
+Comm278,Hay
+Comm279,Hayscastle
+Comm280,Heath
+Comm281,Henfynyw
+Comm282,Henllan
+Comm283,Henllanfallteg
+Comm284,Henllys
+Comm285,Henryd
+Comm286,Herbrandston
+Comm287,Higher Kinnerton
+Comm288,Hirwaun
+Comm289,Holt
+Comm290,Holyhead
+Comm291,Holywell
+Comm292,Honddu Isaf
+Comm293,Hope
+Comm294,Hundleton
+Comm295,Ilston
+Comm296,Isycoed
+Comm297,Jeffreyston
+Comm298,Johnston
+Comm299,Kerry
+Comm300,Kidwelly
+Comm301,Kilgetty-begelly
+Comm302,Killay
+Comm303,Kinmel Bay and Towyn
+Comm304,Knighton
+Comm305,Laleston
+Comm306,Lampeter
+Comm307,Lampeter Velfrey
+Comm308,Lamphey
+Comm309,Landore
+Comm310,Langstone
+Comm311,Laugharne Township
+Comm312,Leeswood
+Comm313,Letterston
+Comm314,Lisvane
+Comm315,Liswerry
+Comm316,Llan-maes
+Comm317,Llanaelhaearn
+Comm318,Llanafanfawr
+Comm319,Llanarmon-yn-ial
+Comm320,Llanarth
+Comm321,Llanarthney
+Comm322,Llanasa
+Comm323,Llanbadarn Fawr
+Comm324,Llanbadarn Fynydd
+Comm325,Llanbadoc
+Comm326,Llanbadrig
+Comm327,Llanbedr
+Comm328,Llanbedr Dyffryn Clwyd
+Comm329,Llanbedrog
+Comm330,Llanberis
+Comm331,Llanbister
+Comm332,Llanboidy
+Comm333,Llanbradach
+Comm334,Llanbrynmair
+Comm335,Llancarfan
+Comm336,Llandaff
+Comm337,Llandaff North
+Comm338,Llanddaniel Fab
+Comm339,Llanddarog
+Comm340,Llanddeiniolen
+Comm341,Llandderfel
+Comm342,Llanddeusant
+Comm343,Llanddew
+Comm344,Llanddewi Brefi
+Comm345,Llanddewi Velfrey
+Comm346,Llanddewi Ystradenny
+Comm347,Llanddoged and Maenan
+Comm348,Llanddona
+Comm349,Llanddowror
+Comm350,Llanddulas and Rhyd-y-foel
+Comm351,Llanddyfnan
+Comm352,Llandegla
+Comm353,Llandeilo
+Comm354,Llandinam
+Comm355,Llandissilio West
+Comm356,Llandough
+Comm357,Llandovery
+Comm358,Llandow
+Comm359,Llandrillo
+Comm360,Llandrindod Wells
+Comm361,Llandrinio
+Comm362,Llandudno
+Comm363,Llandwrog
+Comm364,Llandybie
+Comm365,Llandyfaelog
+Comm366,Llandyfriog
+Comm367,Llandygai
+Comm368,Llandyrnog
+Comm369,Llandysilio
+Comm370,Llandysiliogogo
+Comm371,Llandyssil
+Comm372,Llandysul
+Comm373,Llanedi
+Comm374,Llanegryn
+Comm375,Llanegwad
+Comm376,Llaneilian
+Comm377,Llanelidan
+Comm378,Llanelli
+Comm379,Llanelli Rural
+Comm380,Llanelltyd
+Comm381,Llanelly
+Comm382,Llanelwedd
+Comm383,Llanengan
+Comm384,Llanerfyl
+Comm385,Llaneugrad
+Comm386,Llanfachraeth
+Comm387,Llanfaelog
+Comm388,Llanfaethlu
+Comm389,Llanfair
+Comm390,Llanfair Caereinion
+Comm391,Llanfair Clydogau
+Comm392,Llanfair Dyffryn Clwyd
+Comm393,Llanfair Pwllgwyngyll
+Comm394,Llanfair Talhaiarn
+Comm395,Llanfair-ar-y-bryn
+Comm396,Llanfair-mathafarn-eithaf
+Comm397,Llanfair-yn-neubwll
+Comm398,Llanfairfechan
+Comm399,Llanfarian
+Comm400,Llanfechain
+Comm401,Llanferres
+Comm402,Llanfihangel
+Comm403,Llanfihangel Aberbythych
+Comm404,Llanfihangel Cwmdu with Bwlch and Cathedine
+Comm405,Llanfihangel Glyn Myfyr
+Comm406,Llanfihangel Rhos-y-corn
+Comm407,Llanfihangel Rhydithon
+Comm408,Llanfihangel Ysgeifiog
+Comm409,Llanfihangel Ystrad
+Comm410,Llanfihangel-ar-arth
+Comm411,Llanfihangel-y-pennant
+Comm412,Llanfoist Fawr
+Comm413,Llanfrothen
+Comm414,Llanfrynach
+Comm415,Llanfyllin
+Comm416,Llanfynydd
+Comm417,Llangadog
+Comm418,Llangain
+Comm419,Llangamarch
+Comm420,Llangan
+Comm421,Llangathen
+Comm422,Llangattock
+Comm423,Llangattock-vibon-avel
+Comm424,Llangedwyn
+Comm425,Llangefni
+Comm426,Llangeitho
+Comm427,Llangeler
+Comm428,Llangelynin
+Comm429,Llangennech
+Comm430,Llangennith
+Comm431,Llangernyw
+Comm432,Llangoed
+Comm433,Llangoedmor
+Comm434,Llangollen
+Comm435,Llangollen Rural
+Comm436,Llangors
+Comm437,Llangrannog
+Comm438,Llangristiolus
+Comm439,Llangunllo
+Comm440,Llangunnor
+Comm441,Llangurig
+Comm442,Llangwm
+Comm443,Llangwyryfon
+Comm444,Llangybi
+Comm445,Llangyfelach
+Comm446,Llangyndeyrn
+Comm447,Llangynfelyn
+Comm448,Llangynhafal
+Comm449,Llangynidr
+Comm450,Llangyniew
+Comm451,Llangynin
+Comm452,Llangynog
+Comm453,Llangynwyd Lower
+Comm454,Llangynwyd Middle
+Comm455,Llangywer
+Comm456,Llanharan
+Comm457,Llanharry
+Comm458,Llanhennock
+Comm459,Llanhilleth
+Comm460,Llanidan
+Comm461,Llanidloes
+Comm462,Llanidloes without
+Comm463,Llanigon
+Comm464,Llanilar
+Comm465,Llanishen
+Comm466,Llanllawddog
+Comm467,Llanllechid
+Comm468,Llanllwchaiarn
+Comm469,Llanllwni
+Comm470,Llanllyfni
+Comm471,Llannefydd
+Comm472,Llannerch-y-medd
+Comm473,Llannon
+Comm474,Llannor
+Comm475,Llanover
+Comm476,Llanpumsaint
+Comm477,Llanrhaeadr-ym-mochnant
+Comm478,Llanrhaeadr-yng-nghinmeirch
+Comm479,Llanrhian
+Comm480,Llanrhidian Higher
+Comm481,Llanrhidian Lower
+Comm482,Llanrhystyd
+Comm483,Llanrug
+Comm484,Llanrumney
+Comm485,Llanrwst
+Comm486,Llansadwrn
+Comm487,Llansamlet
+Comm488,Llansanffraid Glan Conwy
+Comm489,Llansannan
+Comm490,Llansantffraed
+Comm491,Llansantffraid
+Comm492,Llansantffraid Glyn Ceiriog
+Comm493,Llansawel
+Comm494,Llansilin
+Comm495,Llanstadwell
+Comm496,Llansteffan
+Comm497,Llantarnam
+Comm498,Llantilio Crossenny
+Comm499,Llantilio Pertholey
+Comm500,Llantrisant
+Comm501,Llantrisant Fawr
+Comm502,Llantwit Fardre
+Comm503,Llantwit Major
+Comm504,Llantysilio
+Comm505,Llanuwchllyn
+Comm506,Llanvaches
+Comm507,Llanwddyn
+Comm508,Llanwenog
+Comm509,Llanwern
+Comm510,Llanwinio
+Comm511,Llanwnda
+Comm512,Llanwnnen
+Comm513,Llanwrda
+Comm514,Llanwrthwl
+Comm515,Llanwrtyd Wells
+Comm516,Llanybydder
+Comm517,Llanycil
+Comm518,Llanycrwys
+Comm519,Llanynys
+Comm520,Llanyrafon
+Comm521,Llanyre
+Comm522,Llanystumdwy
+Comm523,Llawhaden
+Comm524,Llay
+Comm525,Lledrod
+Comm526,Llwchwr
+Comm527,Llwydcoed
+Comm528,Llwyn-y-pia
+Comm529,Llysfaen
+Comm530,Llywel
+Comm531,Machynlleth
+Comm532,Maelor South
+Comm533,Maenclochog
+Comm534,Maentwrog
+Comm535,Maerdy
+Comm536,Maescar
+Comm537,Maesteg
+Comm538,Maesycwmmer
+Comm539,Magor with Undy
+Comm540,Malpas
+Comm541,Manafon
+Comm542,Manorbier
+Comm543,Manordeifi
+Comm544,Manordeilo and Salem
+Comm545,Marchwiel
+Comm546,Margam
+Comm547,Margam Moors
+Comm548,Marloes and St Brides
+Comm549,Marshfield
+Comm550,Martletwy
+Comm551,Mathern
+Comm552,Mathry
+Comm553,Mawddwy
+Comm554,Mawr
+Comm555,Mechell
+Comm556,Meidrim
+Comm557,Meifod
+Comm558,Melindwr
+Comm559,Menai Bridge
+Comm560,Merlin's Bridge
+Comm561,Merthyr Cynog
+Comm562,Merthyr Mawr
+Comm563,Merthyr Vale
+Comm564,Michaelston
+Comm565,Michaelstone-y-fedw
+Comm566,Milford Haven
+Comm567,Minera
+Comm568,Mitchel Troy
+Comm569,Mochdre
+Comm570,Moelfre
+Comm571,Mold
+Comm572,Monmouth
+Comm573,Montgomery
+Comm574,Morriston
+Comm575,Mostyn
+Comm576,Mountain Ash
+Comm577,Mumbles
+Comm578,Myddfai
+Comm579,Mynachlog-ddu
+Comm580,Mynydd Isa
+Comm581,Mynyddbach
+Comm582,Nannerch
+Comm583,Nantcwnlle
+Comm584,Nantglyn
+Comm585,Nantmel
+Comm586,Nantyglo and Blaina
+Comm587,Narberth
+Comm588,Nash
+Comm589,Neath
+Comm590,Nefyn
+Comm591,Nelson
+Comm592,Nercwys
+Comm593,Nevern
+Comm594,New Inn
+Comm595,New Moat
+Comm596,New Quay
+Comm597,New Radnor
+Comm598,New Tredegar
+Comm599,Newbridge
+Comm600,Newcastle Emlyn
+Comm601,Newcastle Higher
+Comm602,Newchurch and Merthyr
+Comm603,Newport
+Comm604,Newtown and Llanllwchaiarn
+Comm605,Neyland
+Comm606,Nolton and Roch
+Comm607,Northop
+Comm608,Northop Hall
+Comm609,Offa
+Comm610,Ogmore Valley
+Comm611,Old Colwyn
+Comm612,Old Radnor
+Comm613,Old St Mellons
+Comm614,Onllwyn
+Comm615,Overton
+Comm616,Painscastle
+Comm617,Pant
+Comm618,Panteg
+Comm619,Park
+Comm620,Pelenna
+Comm621,Pembroke
+Comm622,Pembroke Dock
+Comm623,Pen Tranch
+Comm624,Pen-y-bont-fawr
+Comm625,Pen-y-graig
+Comm626,Pen-y-waun
+Comm627,Penally
+Comm628,Penarth
+Comm629,Penbryn
+Comm630,Pencaer
+Comm631,Pencarreg
+Comm632,Pencoed
+Comm633,Penderry
+Comm634,Pendine
+Comm635,Pendoylan
+Comm636,Pengam
+Comm637,Penhow
+Comm638,Penllergaer
+Comm639,Penllyn
+Comm640,Penmaen
+Comm641,Penmaenmawr
+Comm642,Penmynydd
+Comm643,Pennal
+Comm644,Pennard
+Comm645,Penrhiwceiber
+Comm646,Penrhyndeudraeth
+Comm647,Penrice
+Comm648,Pentir
+Comm649,Pentraeth
+Comm650,Pentre
+Comm651,Pentrefoelas
+Comm652,Pentwyn
+Comm653,Pentyrch
+Comm654,Penybont
+Comm655,Penycae
+Comm656,Penydarren
+Comm657,Penyffordd
+Comm658,Penyrheol
+Comm659,Peterston-super-ely
+Comm660,Pillgwenlly
+Comm661,Pistyll
+Comm662,Plasnewydd
+Comm663,Pont-lliw
+Comm664,Pont-y-clun
+Comm665,Pontardawe
+Comm666,Pontardulais
+Comm667,Pontarfynach
+Comm668,Ponthir
+Comm669,Pontllanfraith
+Comm670,Pontnewydd
+Comm671,Pontprennau
+Comm672,Pontyberem
+Comm673,Pontymoile
+Comm674,Pontypridd
+Comm675,Port Eynon
+Comm676,Port Talbot
+Comm677,Porth
+Comm678,Porthcawl
+Comm679,Porthmadog
+Comm680,Portskewett
+Comm681,Prestatyn
+Comm682,Presteigne
+Comm683,Puncheston
+Comm684,Pwllheli
+Comm685,Quarter Bach
+Comm686,Queensferry
+Comm687,Radyr
+Comm688,Raglan
+Comm689,Redwick
+Comm690,Resolven
+Comm691,Reynoldston
+Comm692,Rhayader
+Comm693,Rhigos
+Comm694,Rhiwbina
+Comm695,Rhoose
+Comm696,Rhos-on-sea
+Comm697,Rhoscolyn
+Comm698,Rhosddu
+Comm699,Rhosllanerchrugog
+Comm700,Rhossili
+Comm701,Rhosybol
+Comm702,Rhosyr
+Comm703,Rhuddlan
+Comm704,Rhyl
+Comm705,Rhymney
+Comm706,Ringland
+Comm707,Risca
+Comm708,Riverside
+Comm709,Roath
+Comm710,Rogerstone
+Comm711,Rogiet
+Comm712,Rosemarket
+Comm713,Rossett
+Comm714,Ruabon
+Comm715,Rudbaxton
+Comm716,Rudry
+Comm717,Rumney
+Comm718,Ruthin
+Comm719,Saltney
+Comm720,Sandfields East
+Comm721,Sandfields West
+Comm722,Saundersfoot
+Comm723,Scleddau
+Comm724,Sealand
+Comm725,Sesswick
+Comm726,Seven Sisters
+Comm727,Shaftesbury
+Comm728,Shirenewton
+Comm729,Shotton
+Comm730,Sketty
+Comm731,Slebech
+Comm732,Solva
+Comm733,Spittal
+Comm734,Splott
+Comm735,St Arvans
+Comm736,St Asaph
+Comm737,St Athan
+Comm738,St Bride's Major
+Comm739,St Bride's Minor
+Comm740,St Clears
+Comm741,St Davids and the Cathedral Close
+Comm742,St Dogmaels
+Comm743,St Donats
+Comm744,St Fagans
+Comm745,St Florence
+Comm746,St Georges-super-ely
+Comm747,St Harmon
+Comm748,St Ishmael
+Comm749,St Ishmael's
+Comm750,St Julians
+Comm751,St Mary Out Liberty
+Comm752,St Nicholas and Bonvilston
+Comm753,St Thomas
+Comm754,Stackpole
+Comm755,Stow Hill
+Comm756,Sully
+Comm757,Taffs Well
+Comm758,Tai Bach
+Comm759,Talgarth
+Comm760,Talley
+Comm761,Talsarnau
+Comm762,Talybont-on-usk
+Comm763,Tawe-uchaf
+Comm764,Templeton
+Comm765,Tenby
+Comm766,The Havens
+Comm767,The Vale Of Grwyney
+Comm768,Tiers Cross
+Comm769,Tintern
+Comm770,Tirymynach
+Comm771,Tongwynlais
+Comm772,Tonna
+Comm773,Tonypandy
+Comm774,Tonyrefail
+Comm775,Town
+Comm776,Townhill
+Comm777,Trallong
+Comm778,Trawsfynydd
+Comm779,Trawsgoed
+Comm780,Trealaw
+Comm781,Trearddur
+Comm782,Trecwn
+Comm783,Tredegar
+Comm784,Tredegar Park
+Comm785,Tref Alaw
+Comm786,Trefeglwys
+Comm787,Trefeurig
+Comm788,Treflys
+Comm789,Trefnant
+Comm790,Trefriw
+Comm791,Tregaron
+Comm792,Tregynon
+Comm793,Trehafod
+Comm794,Treharris
+Comm795,Treherbert
+Comm796,Trelawnyd and Gwaenysgor
+Comm797,Trelech
+Comm798,Trellech United
+Comm799,Tremeirchion
+Comm800,Treorchy
+Comm801,Treuddyn
+Comm802,Trevethin
+Comm803,Trewalchmai
+Comm804,Trewern
+Comm805,Trimsaran
+Comm806,Troed-y-rhiw
+Comm807,Troedyraur
+Comm808,Trowbridge
+Comm809,Tudweiliog
+Comm810,Tylorstown
+Comm811,Tywyn
+Comm812,Uplands
+Comm813,Upper Cwmbran
+Comm814,Upper Killay
+Comm815,Usk
+Comm816,Uzmaston and Boulston
+Comm817,Valley
+Comm818,Van
+Comm819,Vaynor
+Comm820,Victoria
+Comm821,Waen
+Comm822,Walwyn's Castle
+Comm823,Waunfawr
+Comm824,Welsh St Donats
+Comm825,Welshpool
+Comm826,Wentlooge
+Comm827,Wenvoe
+Comm828,Whitchurch
+Comm829,Whitford
+Comm830,Whitland
+Comm831,Whitton
+Comm832,Wick
+Comm833,Willington Worthenbury
+Comm834,Wiston
+Comm835,Wolfscastle
+Comm836,Y Felinheli
+Comm837,Y Ferwig
+Comm838,Ynysawdre
+Comm839,Ynysddu
+Comm840,Ynyshir
+Comm841,Ynysybwl and Coed-y-cwm
+Comm842,Ysbyty Ifan
+Comm843,Ysbyty Ystwyth
+Comm844,Ysceifiog
+Comm845,Yscir
+Comm846,Ysgubor-y-coed
+Comm847,Ystalyfera
+Comm848,Ystrad
+Comm849,Ystrad Fflur
+Comm850,Ystrad Meurig
+Comm851,Ystradfellte
+Comm852,Ystradgynlais

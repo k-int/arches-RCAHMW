@@ -1,0 +1,125 @@
+deleting index : rcahmw_terms
+deleting index : rcahmw_concepts
+deleting index : rcahmw_resources
+deleting index : rcahmw_resource_relations
+creating index : rcahmw_terms
+creating index : rcahmw_concepts
+creating index : rcahmw_resource_relations
+creating index : rcahmw_resources
+Indexing concepts
+Status: Passed, In Database: 9062, Indexed: 9062, Took: 7 seconds
+Indexing resource type 'NMRW_Sites'
+Warning: No valid output stream.
+/home/sa_arches/env/lib/python3.6/site-packages/elasticsearch/connection/base.py:177: ElasticsearchDeprecationWarning: [types removal] Using include_type_name in create index requests is deprecated. The parameter will be removed in the next major version.
+  warnings.warn(message, category=ElasticsearchDeprecationWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/elasticsearch/connection/base.py:177: ElasticsearchDeprecationWarning: [types removal] Specifying types in bulk requests is deprecated.
+  warnings.warn(message, category=ElasticsearchDeprecationWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/elasticsearch/connection/base.py:177: ElasticsearchDeprecationWarning: [types removal] Specifying types in count requests is deprecated.
+  warnings.warn(message, category=ElasticsearchDeprecationWarning)
+Status: Passed, Resource Type: NMRW_Sites, In Database: 119438, Indexed: 119438, Took: 11639 seconds
+Indexing resource to resource relations
+Status: Passed, In Database: 38185, Indexed: 38185, Took: 13 seconds
+operation: export_business_data
+Traceback (most recent call last):
+  File "manage.py", line 30, in <module>
+    execute_from_command_line(sys.argv)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/__init__.py", line 381, in execute_from_command_line
+    utility.execute()
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/__init__.py", line 375, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/base.py", line 323, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/base.py", line 364, in execute
+    output = self.handle(*args, **options)
+  File "/home/sa_arches/arches/arches/management/commands/packages.py", line 264, in handle
+    options["dest_dir"], options["format"], options["config_file"], options["graphs"], options["single_file"]
+  File "/home/sa_arches/arches/arches/management/commands/packages.py", line 981, in export_business_data
+    data = resource_exporter.export(graph_id=graphid, resourceinstanceids=None)
+  File "/home/sa_arches/arches/arches/app/utils/data_management/resources/exporter.py", line 33, in export
+    resources = self.writer.write_resources(graph_id=graph_id, resourceinstanceids=resourceinstanceids)
+  File "/home/sa_arches/arches/arches/app/utils/data_management/resources/formats/csvfile.py", line 83, in write_resources
+    super(CsvWriter, self).write_resources(graph_id=graph_id, resourceinstanceids=resourceinstanceids, **kwargs)
+  File "/home/sa_arches/arches/arches/app/utils/data_management/resources/formats/format.py", line 209, in write_resources
+    self.get_tiles(graph_id=graph_id, resourceinstanceids=resourceinstanceids, **kwargs)
+  File "/home/sa_arches/arches/arches/app/utils/data_management/resources/formats/format.py", line 261, in get_tiles
+    for tile in self.tiles:
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/query.py", line 274, in __iter__
+    self._fetch_all()
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/query.py", line 1242, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/query.py", line 55, in __iter__
+    results = compiler.execute_sql(chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/sql/compiler.py", line 1173, in execute_sql
+    return list(result)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/sql/compiler.py", line 1552, in cursor_iter
+    for rows in iter((lambda: cursor.fetchmany(itersize)), sentinel):
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/sql/compiler.py", line 1552, in <lambda>
+    for rows in iter((lambda: cursor.fetchmany(itersize)), sentinel):
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/db/utils.py", line 96, in inner
+    return func(*args, **kwargs)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/psycopg2/extras.py", line 678, in <lambda>
+    lambda data, cursor: data and uuid.UUID(data) or None)
+  File "/usr/lib/python3.6/uuid.py", line 141, in __init__
+    int = int_(hex, 16)
+KeyboardInterrupt
+operation: export_business_data
+Traceback (most recent call last):
+  File "manage.py", line 30, in <module>
+    execute_from_command_line(sys.argv)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/__init__.py", line 381, in execute_from_command_line
+    utility.execute()
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/__init__.py", line 375, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/base.py", line 323, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "/home/sa_arches/env/lib/python3.6/site-packages/django/core/management/base.py", line 364, in execute
+    output = self.handle(*args, **options)
+  File "/home/sa_arches/arches/arches/management/commands/packages.py", line 264, in handle
+    options["dest_dir"], options["format"], options["config_file"], options["graphs"], options["single_file"]
+  File "/home/sa_arches/arches/arches/management/commands/packages.py", line 982, in export_business_data
+    for file in data:
+TypeError: 'NoneType' object is not iterable
+operation: export_business_data
+operation: export_business_data
+2023-01-20 15:38:04,392 arches.app.utils.task_management ERROR    Unable to connect to a celery broker
+/home/sa_arches/env/lib/python3.6/site-packages/elasticsearch/connection/base.py:177: ElasticsearchDeprecationWarning: [types removal] Specifying types in bulk requests is deprecated.
+  warnings.warn(message, category=ElasticsearchDeprecationWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField EditLog.timestamp received a naive datetime (2023-01-20 15:38:04.874016) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField LatestResourceEdit.timestamp received a naive datetime (2023-01-20 15:38:04.874016) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField ResourceInstance.createdtime received a naive datetime (2023-01-20 15:38:05.629783) while time zone support is active.
+  RuntimeWarning)
+CALLING REQUIRED NODE FN
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField EditLog.timestamp received a naive datetime (2023-01-20 15:38:05.712748) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField LatestResourceEdit.timestamp received a naive datetime (2023-01-20 15:38:05.712748) while time zone support is active.
+  RuntimeWarning)
+2023-01-20 15:38:05,857 arches.app.utils.data_management.resources.formats.csvfile WARNING  NMRW_Name is null or not mapped on rows 2 and                                 participates in a display value function.
+2023-01-20 15:38:05,857 arches.app.utils.data_management.resources.formats.csvfile WARNING  Name_Type is null or not mapped on rows 2 and                                 participates in a display value function.
+2023-01-20 15:38:05,857 arches.app.utils.data_management.resources.formats.csvfile WARNING  Description is null or not mapped on rows 2 and                                 participates in a display value function.
+2023-01-20 15:38:05,857 arches.app.utils.data_management.resources.formats.csvfile WARNING  2023-01-20 15:38:05.677393: WARNING: failed to index document in resource: c06c3a09-6e51-4aa7-a209-203adfdac116 on line 2. Exception detail:
+'Error! You must first assign a NPRN to this record.'
+
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField ResourceXResource.modified received a naive datetime (2023-01-20 15:38:05.865979) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField ResourceXResource.modified received a naive datetime (2023-01-20 15:38:05.884389) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField ResourceXResource.modified received a naive datetime (2023-01-20 15:38:05.902850) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField ResourceXResource.modified received a naive datetime (2023-01-20 15:38:05.917689) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField ResourceXResource.modified received a naive datetime (2023-01-20 15:38:05.933446) while time zone support is active.
+  RuntimeWarning)
+/home/sa_arches/env/lib/python3.6/site-packages/django/db/models/fields/__init__.py:1427: RuntimeWarning: DateTimeField ResourceXResource.modified received a naive datetime (2023-01-20 15:38:05.951652) while time zone support is active.
+  RuntimeWarning)
+2023-01-20 15:38:11,995 arches.app.utils.task_management ERROR    Unable to connect to a celery broker
+operation: import_business_data
+Importing /home/sa_arches/rcahmw/RCData/finalXREFtest2.csv. . .
+Starting import of business data
+The NMRW_Name node participates in the name display function.
+The Name_Type node participates in the map_popup display function.
+The Description node participates in the description display function.
+Total resources saved: 1
+Time to import_business_data = 0:00:07.532341
+***** Errors occured during import. Some data may not have been imported. For more information, check resource import error log: /home/sa_arches/rcahmw/rcahmw/logs/resource_import.log
