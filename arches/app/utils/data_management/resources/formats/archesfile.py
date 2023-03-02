@@ -65,6 +65,7 @@ class ArchesFileWriter(Writer):
             for counter, res in enumerate(resources):
                 print(counter)
                 f.write(JSONSerializer().serialize(res))
+                f.write("\n")
         exit()
 
 

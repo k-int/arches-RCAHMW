@@ -54,7 +54,6 @@ from arches.app.datatypes.datatypes import DataTypeFactory
 
 logger = logging.getLogger(__name__)
 
-
 class Resource(models.ResourceInstance):
     class Meta:
         proxy = True

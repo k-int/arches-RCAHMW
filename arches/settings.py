@@ -168,8 +168,8 @@ USE_I18N = True
 # timezone as the operating system.
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
-TIME_ZONE = "America/Chicago"
-USE_TZ = False
+TIME_ZONE = "GB" #"America/Chicago"
+USE_TZ = True
 
 
 # see https://docs.djangoproject.com/en/1.9/topics/i18n/translation/#how-django-discovers-language-preference

@@ -8,7 +8,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("models", "5605_searchexporthistory_downloadfile"),
+        ("models", "5606_latestresourceedit"),
     ]
 
     operations = [

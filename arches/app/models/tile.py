@@ -32,7 +32,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext as _
 from arches.app.models import models
 from arches.app.models.resource import Resource
-from arches.app.models.resource import EditLog
+from arches.app.models.resource import EditLog, LatestResourceEdit
 from arches.app.models.system_settings import settings
 from arches.app.utils.betterJSONSerializer import JSONSerializer, JSONDeserializer
 from arches.app.utils.permission_backend import user_is_resource_reviewer
@@ -141,6 +141,14 @@ class Tile(models.TileModel):
         edit.newprovisionalvalue = newprovisionalvalue
         edit.oldprovisionalvalue = oldprovisionalvalue
         edit.save()
+
+        if LatestResourceEdit.objects.filter(resourceinstanceid=self.resourceinstance.resourceinstanceid).exists():
+            LatestResourceEdit.objects.get(resourceinstanceid=self.resourceinstance.resourceinstanceid).delete()
+        latest_edit = LatestResourceEdit()
+        latest_edit.resourceinstanceid = self.resourceinstance.resourceinstanceid
+        latest_edit.timestamp = timestamp
+        latest_edit.edittype = edit_type
+        latest_edit.save()
 
     def tile_collects_data(self):
         result = True
