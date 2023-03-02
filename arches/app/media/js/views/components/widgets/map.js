@@ -7,7 +7,6 @@ define([
     'viewmodels/map-editor',
     'bindings/chosen',
     'bindings/codemirror',
-    'codemirror/mode/javascript/javascript',
     'select2',
     'bindings/select2v4',
     'bindings/fadeVisible',
@@ -18,6 +17,7 @@ define([
 ], function(arches, _, ko, koMapping, WidgetViewModel, MapEditorViewModel) {
     var viewModel = function(params) {
         this.context = params.type;
+
         this.summaryDetails = [];
         this.defaultValueOptions = [
             {
@@ -38,6 +38,8 @@ define([
         ];
 
         params.configKeys = [
+            'basemap',
+            'overlayConfigs',
             'zoom',
             'centerX',
             'centerY',
@@ -74,7 +76,9 @@ define([
             return value.features.length;
         }, this);
 
-        if (params.widget) params.widgets = [params.widget];
+        if (params.widget) {
+            params.widgets = [params.widget];
+        }
 
         if (ko.unwrap(this.value) !== null) {
             this.summaryDetails = koMapping.toJS(this.value).features || [];
@@ -85,10 +89,14 @@ define([
             this.centerY(arches.mapDefaultY);
             this.zoom(arches.mapDefaultZoom);
         }
+
+        params.basemap = this.basemap;
+        params.overlayConfigs = this.overlayConfigs;
         params.zoom = this.zoom;
         params.x = this.centerX;
         params.y = this.centerY;
         params.usePosition = true;
+        params.inWidget = true;
 
         MapEditorViewModel.apply(this, [params]);
     };

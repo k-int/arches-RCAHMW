@@ -75,6 +75,52 @@ class Command(BaseCommand):
             component=details["component"],
             componentname=details["componentname"],
             defaultconfig=details["defaultconfig"],
+            preload_resource_data=details.get("preload_resource_data", True),
         )
 
         instance.save()
+
+    def update(self, source):
+        """
+        Updates an existing report template in the arches db
+
+        """
+
+        import json
+
+        details = {}
+
+        with open(source) as f:
+            details = json.load(f)
+
+        instance = models.ReportTemplate.objects.get(name=details["name"])
+        instance.description = details["description"]
+        instance.component = details["component"]
+        instance.componentname = details["componentname"]
+        instance.defaultconfig = details["defaultconfig"]
+        instance.save()
+
+    def unregister(self, name):
+        """
+        Removes the report template from the system
+
+        """
+
+        try:
+            instance = models.ReportTemplate.objects.get(name=name)
+            instance.delete()
+        except Exception as e:
+            print(e)
+
+    def list(self):
+        """
+        Lists registered report templates
+
+        """
+
+        try:
+            instances = models.ReportTemplate.objects.all()
+            for instance in instances:
+                print(instance.name)
+        except Exception as e:
+            print(e)

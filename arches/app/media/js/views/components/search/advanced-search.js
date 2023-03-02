@@ -53,12 +53,14 @@ define([
                             _.each(card.nodes, function(node) {
                                 if (self.cardNameDict[node.nodegroup_id] && node.nodeid === node.nodegroup_id) {
                                     node.label = self.cardNameDict[node.nodegroup_id];
-                                } else if (node.nodeid !== node.nodegroup_id) {
-                                    node.label = self.widgetLookup[node.nodeid].label;
+                                } else if (node.nodeid !== node.nodegroup_id && self.widgetLookup[node.nodeid]) {
+                                    const widget = self.widgetLookup[node.nodeid];
+                                    node.label = widget.label;
+                                    node.sortorder = widget.sortorder;
                                 } else {
                                     node.label = node.name;
                                 }
-                            });
+                            }).sort((a, b) => a.sortorder - b.sortorder);
                             self.newFacet(card);
                         };
                     }, this);
@@ -77,9 +79,11 @@ define([
                                         return graph;
                                     };
                                 });
+                                graph.collapsed = ko.observable(true);
                                 graph.cards = ko.computed(function() {
                                     var facetFilterText = this.facetFilterText().toLowerCase();
                                     if (facetFilterText) {
+                                        graph.collapsed(false);
                                         return _.filter(graphCards, function(card) {
                                             return card.name.toLowerCase().indexOf(facetFilterText) > -1;
                                         });
@@ -99,6 +103,8 @@ define([
                     filterUpdated.subscribe(function() {
                         this.updateQuery();
                     }, this);
+
+                    options.loading(false);
                 });
 
                 this.filters[componentName](this);

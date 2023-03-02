@@ -16,7 +16,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 -->
 {% extends "views/graph/graph-base.htm" %}
-{% load staticfiles %}
+{% load static %}
 {% load i18n %}
 
 <!-- Title Bar -->
@@ -43,7 +43,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 {% block content %}
 <div class="ep-form-content" style="display: none" data-bind="visible: graph">
-    <div id="external-page-content">
+    <div style="height: 100%;" id="external-page-content">
         <div style="padding: 12px;">
             <div class="panel card-panel">
                 <div class="panel-heading">

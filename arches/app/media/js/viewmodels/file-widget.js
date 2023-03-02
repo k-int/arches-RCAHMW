@@ -1,12 +1,13 @@
 define([
     'jquery',
+    'arches',
     'knockout',
     'underscore',
     'dropzone',
     'uuid',
     'viewmodels/widget',
     'bindings/dropzone'
-], function($, ko, _, Dropzone, uuid, WidgetViewModel) {
+], function($, arches, ko, _, Dropzone, uuid, WidgetViewModel) {
     /**
      * A viewmodel used for domain widgets
      *
@@ -136,6 +137,18 @@ define([
                 );
             }
         });
+
+        this.getFileUrl = function(url){
+            url = ko.unwrap(url);
+            var httpRegex = /^https?:\/\//;
+            // test whether the url is external (starts with http(s), if it is just return it)
+            if (httpRegex.test(url)){
+                return url;
+            }else{
+                return (arches.urls.url_subpath + url).replace('//', '/');
+            }
+
+        };
 
         if (Array.isArray(self.value())) {
             this.uploadedFiles(self.value());

@@ -21,7 +21,8 @@ from django.contrib.auth import views as auth_views
 from django.conf.urls import include, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from arches.app.views import concept, main, map, search, graph, api
-from arches.app.views.admin import ReIndexResources, FileView
+from arches.app.views.admin import ReIndexResources, FileView, ClearUserPermissionCache
+from arches.app.views.etl_manager import ETLManagerView
 from arches.app.views.graph import (
     GraphDesignerView,
     GraphSettingsView,
@@ -50,9 +51,12 @@ from arches.app.views.plugin import PluginView
 from arches.app.views.concept import RDMView
 from arches.app.views.user import UserManagerView
 from arches.app.views.tile import TileData
+from arches.app.views.transaction import ReverseTransaction
 from arches.app.views.notifications import NotificationView
 from arches.app.views.map import MapLayerManagerView, TileserverProxyView
 from arches.app.views.mobile_survey import MobileSurveyManagerView, MobileSurveyResources, MobileSurveyDesignerView
+from arches.app.views.manifest_manager import ManifestManagerView
+from arches.app.views.manifest_manager import IIIFServerProxyView
 from arches.app.views.auth import (
     LoginView,
     SignupView,
@@ -63,9 +67,11 @@ from arches.app.views.auth import (
     ServerSettingView,
     PasswordResetView,
     PasswordResetConfirmView,
+    Token,
 )
 from arches.app.models.system_settings import settings
 from django.views.decorators.cache import cache_page
+from django.urls import path
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
@@ -84,6 +90,7 @@ urlpatterns = [
     url(r"^auth/get_client_id$", GetClientIdView.as_view(), name="get_client_id"),
     url(r"^auth/user_profile$", UserProfileView.as_view(), name="user_profile"),
     url(r"^auth/server_settings$", ServerSettingView.as_view(), name="server_settings"),
+    url(r"^auth/get_dev_token$", Token.as_view(), name="get_dev_token"),
     url(r"^auth/", LoginView.as_view(), name="auth"),
     url(r"^rdm/(?P<conceptid>%s|())$" % uuid_regex, RDMView.as_view(), name="rdm"),
     url(r"^admin/reindex/resources$", ReIndexResources.as_view(), name="reindex"),
@@ -113,6 +120,7 @@ urlpatterns = [
     url(r"^search/time_wheel_config$", search.time_wheel_config, name="time_wheel_config"),
     url(r"^search/export_results$", search.export_results, name="export_results"),
     url(r"^search/get_export_file$", search.get_export_file, name="get_export_file"),
+    url(r"^search/get_dsl$", search.get_dsl_from_search_string, name="get_dsl"),
     url(r"^buffer/$", search.buffer, name="buffer"),
     url(
         r"^settings/",
@@ -189,6 +197,7 @@ urlpatterns = [
     url(r"^resource/descriptors/(?P<resourceid>%s|())$" % uuid_regex, ResourceDescriptors.as_view(), name="resource_descriptors"),
     url(r"^resource/(?P<resourceid>%s)/tiles$" % uuid_regex, ResourceTiles.as_view(), name="resource_tiles"),
     url(r"^report/(?P<resourceid>%s)$" % uuid_regex, ResourceReportView.as_view(), name="resource_report"),
+    url(r"^transaction/(?P<transactionid>%s)/reverse$" % uuid_regex, ReverseTransaction.as_view(), name="transaction_reverse"),
     url(r"^card/(?P<cardid>%s|())$" % uuid_regex, CardView.as_view(action="update_card"), name="card"),
     url(r"^reorder_cards/", CardView.as_view(action="reorder_cards"), name="reorder_cards"),
     url(r"^node/(?P<graphid>%s)$" % uuid_regex, GraphDataView.as_view(action="update_node"), name="node"),
@@ -226,13 +235,23 @@ urlpatterns = [
     url(r"^sync/(?P<surveyid>%s|())$" % uuid_regex, api.Sync.as_view(), name="sync"),
     url(r"^checksyncstatus/(?P<synclogid>%s|())$" % uuid_regex, api.CheckSyncStatus.as_view(), name="checksyncstatus"),
     url(r"^graphs/(?P<graph_id>%s)$" % (uuid_regex), api.Graphs.as_view(), name="graphs_api"),
+    url(r"^graphs", api.Graphs.as_view(action="get_graph_models"), name="get_graph_models_api"),
     url(r"^resources/(?P<graphid>%s)/(?P<resourceid>%s|())$" % (uuid_regex, uuid_regex), api.Resources.as_view(), name="resources_graphid"),
     url(r"^resources/(?P<slug>[-\w]+)/(?P<resourceid>%s|())$" % uuid_regex, api.Resources.as_view(), name="resources_slug"),
     url(r"^resources/(?P<resourceid>%s|())$" % uuid_regex, api.Resources.as_view(), name="resources"),
     url(r"^api/tiles/(?P<tileid>%s|())$" % (uuid_regex), api.Tile.as_view(), name="api_tiles"),
     url(r"^api/nodes/(?P<nodeid>%s|())$" % (uuid_regex), api.Node.as_view(), name="api_nodes"),
+    url(r"^api/nodegroup/(?P<nodegroupid>%s|())$" % (uuid_regex), api.NodeGroup.as_view(), name="api_nodegroup"),
     url(r"^api/instance_permissions/$", api.InstancePermission.as_view(), name="api_instance_permissions"),
     url(r"^api/node_value/$", api.NodeValue.as_view(), name="api_node_value"),
+    url(r"^api/resource_report/(?P<resourceid>%s|())$" % (uuid_regex), api.ResourceReport.as_view(), name="api_resource_report"),
+    url(r"^api/bulk_resource_report$", api.BulkResourceReport.as_view(), name="api_bulk_resource_report"),
+    url(
+        r"^api/bulk_disambiguated_resource_instance$",
+        api.BulkDisambiguatedResourceInstance.as_view(),
+        name="api_bulk_disambiguated_resource_instance",
+    ),
+    url(r"^api/search/export_results$", api.SearchExport.as_view(), name="api_export_results"),
     url(r"^rdm/concepts/(?P<conceptid>%s|())$" % uuid_regex, api.Concepts.as_view(), name="concepts"),
     url(r"^plugins/(?P<pluginid>%s)$" % uuid_regex, PluginView.as_view(), name="plugins"),
     url(r"^plugins/(?P<slug>[-\w]+)$", PluginView.as_view(), name="plugins"),
@@ -246,6 +265,8 @@ urlpatterns = [
     ),
     url(r"^images$", api.Images.as_view(), name="images"),
     url(r"^ontology_properties$", api.OntologyProperty.as_view(), name="ontology_properties"),
+    url(r"^validate/(?P<itemtype>[-\w]+)/(?P<itemid>[-\w]+)", api.Validator.as_view(), name="validate"),
+    url(r"^validate/(?P<itemtype>[-\w]+)", api.Validator.as_view(), name="validatejson"),
     url(r"^tileserver/(?P<path>.*)$", TileserverProxyView.as_view()),
     url(r"^history/$", ResourceActivityStreamCollectionView.as_view(), name="as_stream_collection"),
     url(r"^history/(?P<page>[0-9]+)$", ResourceActivityStreamPageView.as_view(), name="as_stream_page"),
@@ -255,22 +276,32 @@ urlpatterns = [
     # Uncomment the next line to enable the admin:
     url(r"^admin/", admin.site.urls),
     url("i18n/", include("django.conf.urls.i18n")),
-    url(r"^password_reset/$", PasswordResetView.as_view(), name="password_reset",),
-    url(r"^password_reset/done/$", auth_views.PasswordResetDoneView.as_view(), name="password_reset_done"),
     url(
-        r"^reset/(?P<uidb64>[0-9A-Za-z_\-]+)/(?P<token>[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20})/$",
+        r"^password_reset/$",
+        PasswordResetView.as_view(),
+        name="password_reset",
+    ),
+    url(r"^password_reset/done/$", auth_views.PasswordResetDoneView.as_view(), name="password_reset_done"),
+    path(
+        "reset/<uidb64>/<token>/",
         PasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
     ),
     url(r"^reset/done/$", auth_views.PasswordResetCompleteView.as_view(), name="password_reset_complete"),
     url(r"^o/", include("oauth2_provider.urls", namespace="oauth2")),
     url(r"^iiifmanifest$", api.IIIFManifest.as_view(), name="iiifmanifest"),
+    url(r"^iiifserver/(?P<path>.*)$", IIIFServerProxyView.as_view()),
+    url(r"^iiifannotations$", api.IIIFAnnotations.as_view(), name="iiifannotations"),
+    url(r"^iiifannotationnodes$", api.IIIFAnnotationNodes.as_view(), name="iiifannotationnodes"),
+    url(r"^manifest/(?P<id>[0-9]+)$", api.Manifest.as_view(), name="manifest"),
+    url(r"^image-service-manager", ManifestManagerView.as_view(), name="manifest_manager"),
+    url(r"^etl-manager$", ETLManagerView.as_view(), name="etl_manager"),
+    url(r"^clear-user-permission-cache", ClearUserPermissionCache.as_view(), name="clear_user_permission_cache"),
+    url(r"^transform-edtf-for-tile", api.TransformEdtfForTile.as_view(), name="transform_edtf_for_tile"),
 ]
 
 if settings.DEBUG:
     try:
-        import debug_toolbar
-
-        urlpatterns = [url(r"^__debug__/", include(debug_toolbar.urls))] + urlpatterns
+        urlpatterns += [url("silk/", include("silk.urls", namespace="silk"))]
     except:
         pass

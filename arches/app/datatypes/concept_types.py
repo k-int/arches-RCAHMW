@@ -1,5 +1,7 @@
+from arches.app.utils.betterJSONSerializer import JSONSerializer
 import uuid
 import csv
+import logging
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import ugettext as _
 from arches.app.models import models
@@ -15,15 +17,45 @@ from rdflib import Namespace, URIRef, Literal, BNode
 from rdflib import ConjunctiveGraph as Graph
 from rdflib.namespace import RDF, RDFS, XSD, DC, DCTERMS, SKOS
 from arches.app.models.concept import ConceptValue
+from arches.app.models.concept import Concept
+from io import StringIO
 
 archesproject = Namespace(settings.ARCHES_NAMESPACE_FOR_DATA_EXPORT)
 cidoc_nm = Namespace("http://www.cidoc-crm.org/cidoc-crm/")
 
+logger = logging.getLogger(__name__)
 
 class BaseConceptDataType(BaseDataType):
     def __init__(self, model=None):
         super(BaseConceptDataType, self).__init__(model=model)
         self.value_lookup = {}
+        self.collection_lookup = {}
+        self.collection_by_node_lookup = {}
+
+    def lookup_label(self, label, collectionid):
+        ret = label
+        collection_values = self.collection_lookup[collectionid]
+        for concept in collection_values:
+            if label == concept[1]:
+                ret = concept[2]
+        return ret
+
+    def lookup_labelid_from_label(self, value, config):
+        if "rdmCollection" in config:
+            collectionid = config["rdmCollection"]
+        elif "nodeid" in config:
+            nodeid = config["nodeid"]
+            if nodeid in self.collection_by_node_lookup:
+                collectionid = self.collection_by_node_lookup[nodeid]
+            else:
+                collectionid = models.Node.objects.get(nodeid=nodeid).config["rdmCollection"]
+                self.collection_by_node_lookup[nodeid] = collectionid
+        try:
+            result = self.lookup_label(value, collectionid)
+        except KeyError:
+            self.collection_lookup[collectionid] = Concept().get_child_collections(collectionid)
+            result = self.lookup_label(value, collectionid)
+        return result
 
     def get_value(self, valueid):
         try:
@@ -101,7 +133,7 @@ class BaseConceptDataType(BaseDataType):
 
 
 class ConceptDataType(BaseConceptDataType):
-    def validate(self, value, row_number=None, source="", node=None, nodeid=None):
+    def validate(self, value, row_number=None, source="", node=None, nodeid=None, strict=False, **kwargs):
         errors = []
         # first check to see if the validator has been passed a valid UUID,
         # which should be the case at this point. return error if not.
@@ -129,8 +161,20 @@ class ConceptDataType(BaseConceptDataType):
                 return errors
         return errors
 
-    def transform_value_for_tile(self, value):
-        return value.strip()
+    def transform_value_for_tile(self, value, **kwargs):
+        try:
+            stripped = value.strip()
+            uuid.UUID(stripped)
+            value = stripped
+        except ValueError:
+            if value == "":
+                value = None
+            else:
+                try:
+                    value = self.lookup_labelid_from_label(value, kwargs)
+                except:
+                    logger.warn(_("Unable to convert {0} to concept label".format(value)))
+        return value
 
     def transform_export_values(self, value, *args, **kwargs):
         concept_export_value_type = kwargs.get("concept_export_value_type", None)
@@ -145,6 +189,13 @@ class ConceptDataType(BaseConceptDataType):
             return ""
         else:
             return self.get_value(uuid.UUID(data[str(node.nodeid)])).value
+
+    def to_json(self, tile, node):
+        data = self.get_tile_data(tile)
+        if data:
+            val = data[str(node.nodeid)]
+            value_data = JSONSerializer().serializeToPython(self.get_value(uuid.UUID(val)))
+            return self.compile_json(tile, node, **value_data)
 
     def get_rdf_uri(self, node, data, which="r"):
         if not data:
@@ -233,13 +284,12 @@ class ConceptDataType(BaseConceptDataType):
             # No concept_id means not in RDM at all
             return None
 
-
     def ignore_keys(self):
         return ["http://www.w3.org/2000/01/rdf-schema#label http://www.w3.org/2000/01/rdf-schema#Literal"]
 
 
 class ConceptListDataType(BaseConceptDataType):
-    def validate(self, value, row_number=None, source="", node=None, nodeid=None):
+    def validate(self, value, row_number=None, source="", node=None, nodeid=None, strict=False, **kwargs):
         errors = []
 
         # iterate list of values and use the concept validation on each one
@@ -250,11 +300,24 @@ class ConceptListDataType(BaseConceptDataType):
                 errors += validate_concept.validate(val, row_number)
         return errors
 
-    def transform_value_for_tile(self, value):
+    def transform_value_for_tile(self, value, **kwargs):
         ret = []
         for val in csv.reader([value], delimiter=",", quotechar='"'):
-            for v in val:
-                ret.append(v.strip())
+            lines = [line for line in val]
+            for v in lines:
+                try:
+                    stripped = v.strip()
+                    uuid.UUID(stripped)
+                    ret.append(stripped)
+                except ValueError:
+                    if v == "":
+                        continue
+                    else:
+                        try:
+                            ret.append(self.lookup_labelid_from_label(v, kwargs))
+                        except:
+                            ret.append(v)
+                            logger.warn(_("Unable to convert {0} to concept label".format(v)))
         return ret
 
     def transform_export_values(self, value, *args, **kwargs):
@@ -272,6 +335,15 @@ class ConceptListDataType(BaseConceptDataType):
                 new_val = self.get_value(uuid.UUID(val))
                 new_values.append(new_val.value)
         return ",".join(new_values)
+
+    def to_json(self, tile, node):
+        new_values = []
+        data = self.get_tile_data(tile)
+        if data:
+            for val in data[str(node.nodeid)]:
+                new_val = self.get_value(uuid.UUID(val))
+                new_values.append(new_val)
+        return self.compile_json(tile, node, concept_details=new_values)
 
     def get_rdf_uri(self, node, data, which="r"):
         c = ConceptDataType()

@@ -211,7 +211,7 @@ class Command(BaseCommand):
             "--prevent_indexing",
             action="store_true",
             dest="prevent_indexing",
-            help="Prevents indexing the resources or concepts into Elasticsearch",
+            help="Prevents indexing the resources or concepts into Elasticsearch.  If set to True will override any 'defer_indexing' setting.",
         )
 
         parser.add_argument(
@@ -243,6 +243,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         print("operation: " + options["operation"])
         package_name = settings.PACKAGE_NAME
+        celery_worker_running = task_management.check_if_celery_available()
 
         if options["operation"] == "setup":
             self.setup(package_name, es_install_location=options["dest_dir"])
@@ -274,6 +275,19 @@ class Command(BaseCommand):
             self.export_graphs(options["dest_dir"], options["graphs"], options["type"])
 
         if options["operation"] == "import_business_data":
+            defer_indexing = True
+            if "defer_indexing" in options:
+                if isinstance(options["defer_indexing"], bool):
+                    defer_indexing = options["defer_indexing"]
+                elif str(options["defer_indexing"])[0].lower() == "f":
+                    defer_indexing = False
+
+            defer_indexing = defer_indexing and not options["bulk_load"] and not celery_worker_running
+            prevent_indexing = True if options["prevent_indexing"] else defer_indexing
+
+            if defer_indexing:
+                concept_count = models.Value.objects.count()
+                relation_count = models.ResourceXResource.objects.count()
 
             self.import_business_data(
                 options["source"],
@@ -283,8 +297,18 @@ class Command(BaseCommand):
                 options["create_concepts"],
                 use_multiprocessing=options["use_multiprocessing"],
                 force=options["yes"],
-                prevent_indexing=options["prevent_indexing"],
+                prevent_indexing=prevent_indexing,
             )
+
+            if defer_indexing and not prevent_indexing:
+                # index concepts if new concepts created
+                if concept_count != models.Value.objects.count():
+                    management.call_command("es", "index_concepts")
+                # index resources of this model only
+                path = utils.get_valid_path(options["config_file"])
+                mapping = json.load(open(path, "r"))
+                graphid = mapping["resource_model_id"]
+                management.call_command("es", "index_resources_by_type", resource_types=[graphid])
 
         if options["operation"] == "import_node_value_data":
             self.import_node_value_data(options["source"], options["overwrite"])
@@ -460,6 +484,7 @@ class Command(BaseCommand):
                 "extensions/datatypes",
                 "extensions/functions",
                 "extensions/widgets",
+                "extensions/etl_modules",
                 "extensions/css",
                 "extensions/bindings",
                 "extensions/card_components",
@@ -506,6 +531,11 @@ class Command(BaseCommand):
     ):
 
         celery_worker_running = task_management.check_if_celery_available()
+
+        # only defer indexing if the celery worker ISN'T running because celery processes
+        # are async and we currently don't have a celery process to index data.  Once
+        # we do, then we can think about deferring indexing in the celery task as well.
+        defer_indexing = False if celery_worker_running else defer_indexing
 
         def load_ontologies(package_dir):
             ontologies = glob.glob(os.path.join(package_dir, "ontologies/*"))
@@ -706,7 +736,7 @@ class Command(BaseCommand):
                 # assumes resources in csv do not depend on data being loaded prior from json in same dir
                 chord(
                     [
-                        import_business_data.s(data_source=path, overwrite=True, bulk_load=bulk_load, prevent_indexing=prevent_indexing)
+                        import_business_data.s(data_source=path, overwrite=True, bulk_load=bulk_load, prevent_indexing=False)
                         for path in valid_resource_paths
                     ]
                 )(package_load_complete.signature(kwargs={"valid_resource_paths": valid_resource_paths}).on_error(on_chord_error.s()))
@@ -796,6 +826,9 @@ class Command(BaseCommand):
         def load_card_components(package_dir):
             load_extensions(package_dir, "card_components", "card_component")
 
+        def load_card_components(package_dir):
+            load_extensions(package_dir, "cards", "card_component")
+
         def load_search_components(package_dir):
             load_extensions(package_dir, "search", "search")
 
@@ -808,12 +841,12 @@ class Command(BaseCommand):
         def load_functions(package_dir):
             load_extensions(package_dir, "functions", "fn")
 
-        def cache_graphs():
-            management.call_command("cache", operation="graphs")
+        def load_etl_modules(package_dir):
+            load_extensions(package_dir, "etl_modules", "etl_module")
 
-        def update_resource_materialized_view():
+        def update_resource_geojson_geometries():
             with connection.cursor() as cursor:
-                cursor.execute("REFRESH MATERIALIZED VIEW mv_geojson_geoms;")
+                cursor.execute("SELECT * FROM refresh_geojson_geometries();")
 
         def load_apps(package_dir):
             package_apps = glob.glob(os.path.join(package_dir, "apps", "*"))
@@ -887,6 +920,8 @@ class Command(BaseCommand):
         load_functions(package_location)
         print("loading datatypes")
         load_datatypes(package_location)
+        print("loading etl modules")
+        load_etl_modules(package_location)
         print("loading concepts")
         load_concepts(package_location, overwrite_concepts, stage_concepts, defer_indexing)
         print("loading resource models and branches")
@@ -914,7 +949,7 @@ class Command(BaseCommand):
             for css_file in css_files:
                 shutil.copy(css_file, css_dest)
         print("Refreshing the resource view")
-        update_resource_materialized_view()
+        update_resource_geojson_geometries()
         print("loading post sql")
         load_sql(package_location, "post_sql")
         if defer_indexing is True:
@@ -967,7 +1002,9 @@ class Command(BaseCommand):
                 for graph in models.GraphModel.objects.filter(isresource=True).exclude(pk=settings.SYSTEM_SETTINGS_RESOURCE_MODEL_ID)
             ]
         if graphid is False and file_format != "json":
-            utils.print_message("Exporting data for all graphs is currently only supported for the json format")
+            utils.print_message(
+                "Exporting data for all graphs is currently only supported for the json format. Please specify a graphid with the -g flag."
+            )
             sys.exit()
         if graphid:
             graphids.append(graphid)
@@ -979,16 +1016,22 @@ class Command(BaseCommand):
                         file_format, configs=config_file, single_file=single_file
                     )  # New exporter needed for each graphid, else previous data is appended with each subsequent graph
                     data = resource_exporter.export(graph_id=graphid, resourceinstanceids=None)
-                    #for file in data:
-                    #    with open(
-                    #        os.path.join(
-                    #            data_dest,
-                    #            "".join(char if (char.isalnum() or char in safe_characters) else "-" for char in file["name"]).rstrip(),
-                    #        ),
-                    #        "w",
-                    #    ) as f:
-                    #        file["outputfile"].seek(0)
-                    #        shutil.copyfileobj(file["outputfile"], f, 16 * 1024)
+                    # THIS SECTION IS COMMENTED OUT SO THE CSV EXPORTER WILL GRAB RESOURCES ONE BY ONE
+                    # ---- samuel 02/03/23
+                    #
+                    # for file in data:
+                    #     with open(
+                    #         os.path.join(
+                    #             data_dest,
+                    #             "".join(char if (char.isalnum() or char in safe_characters) else "-" for char in file["name"]).rstrip(),
+                    #         ),
+                    #         "w",
+                    #     ) as f:
+                    #         if file_format == "tilexl":
+                    #             file["outputfile"].save(os.path.join(data_dest, file["name"]))
+                    #         else:
+                    #             file["outputfile"].seek(0)
+                    #             shutil.copyfileobj(file["outputfile"], f, 16 * 1024)
                 except KeyError:
                     utils.print_message("{0} is not a valid export file format.".format(file_format))
                     sys.exit()
@@ -1028,17 +1071,17 @@ class Command(BaseCommand):
         if data_source.endswith(".jsonl"):
             print(
                 """
-WARNING: Support for loading JSONL files is still experimental. Be aware that
-the format of logging and console messages has not been updated."""
+                WARNING: Support for loading JSONL files is still experimental. Be aware that
+                the format of logging and console messages has not been updated."""
             )
             if use_multiprocessing is True:
                 print(
                     """
-WARNING: Support for multiprocessing files is still experimental. While using
-multiprocessing to import resources, you will not be able to use ctrl+c (etc.)
-to cancel the operation. You will need to manually kill all of the processes
-with or just close the terminal. Also, be aware that print statements
-will be very jumbled."""
+                    WARNING: Support for multiprocessing files is still experimental. While using
+                    multiprocessing to import resources, you will not be able to use ctrl+c (etc.)
+                    to cancel the operation. You will need to manually kill all of the processes
+                    with or just close the terminal. Also, be aware that print statements
+                    will be very jumbled."""
                 )
                 if not force:
                     confirm = input("continue? Y/n ")
@@ -1068,6 +1111,7 @@ will be very jumbled."""
             create_concepts = True
 
         if len(data_source) > 0:
+            transaction_id = uuid.uuid1()
             for source in data_source:
                 path = utils.get_valid_path(source)
                 if path is not None:
@@ -1079,6 +1123,7 @@ will be very jumbled."""
                         create_collections=create_collections,
                         use_multiprocessing=use_multiprocessing,
                         prevent_indexing=prevent_indexing,
+                        transaction_id=transaction_id,
                     )
                 else:
                     utils.print_message("No file found at indicated location: {0}".format(source))

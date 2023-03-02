@@ -72,15 +72,26 @@ define([
         var nodegroups = params.graphModel.get('nodegroups');
         var multiselect = params.multiselect || false;
         var isWritable = params.card.is_writable || false;
+        this.params = params;
         var selection;
         var emptyConstraint = [{
             uniquetoallinstances: false,
             nodes:[],
-            cardid: self.cardid,
-            constraintid:  uuid.generate()
+            cardid: params.card.cardid,
+            constraintid: uuid.generate()
         }];
 
+        let cardConstraints;
+        if (params.card.constraints?.length) {
+            cardConstraints = params.card.constraints;
+        } else if (params.constraints?.length) {
+            cardConstraints = params.constraints
+        } else {
+            cardConstraints = emptyConstraint;
+        }
+
         var appliedFunctions = params.appliedFunctions;
+        var primaryDescriptorFunction = params.primaryDescriptorFunction;
 
         if (params.multiselect) {
             selection = params.selection || ko.observableArray([]);
@@ -95,7 +106,7 @@ define([
                 widgets: params.cardwidgets,
                 nodes: params.graphModel.get('nodes'),
                 nodegroup: nodegroup,
-                constraints: params.constraints
+                constraints: cardConstraints
             }),
             datatypelookup: params.graphModel.get('datatypelookup'),
         });
@@ -141,6 +152,7 @@ define([
             isWritable: isWritable,
             model: cardModel,
             appliedFunctions: appliedFunctions,
+            primaryDescriptorFunction: primaryDescriptorFunction,
             allowProvisionalEditRerender: allowProvisionalEditRerender,
             multiselect: params.multiselect,
             widgets: cardModel.widgets,
@@ -161,7 +173,7 @@ define([
                     var dataEmpty = _.keys(koMapping.toJS(tile.data)).length === 0;
                     if (ko.unwrap(tile.provisionaledits) !== null && dataEmpty) {
                         return 2;
-                    } else if (tile.provisionaledits() !== null && !dataEmpty) {
+                    } else if (ko.unwrap(tile.provisionaledits) !== null && !dataEmpty) {
                         return 1;
                     } else {
                         return 0;
@@ -273,7 +285,7 @@ define([
                     }
                 },
                 owner: this
-            }),
+            }).extend({ throttle: 1 }),
             showForm: ko.observable(false),
             showSummary: ko.pureComputed(function(){
                 return self.canAdd() && self.showForm() === false && self.selected();
@@ -322,8 +334,33 @@ define([
                     }
                 });
             },
-            getNewTile: function() {
-                if (!this.newTile) this.newTile = new TileViewModel({
+
+            // used to generate parent tile for nexted data
+            saveParentTile: async(optionalParentTile) => {
+                return new Promise((resolve, reject) => {
+                    if(optionalParentTile && !optionalParentTile.tileid) {
+                        optionalParentTile.save((err) => {
+                            reject(err);
+                        }, () => {
+                            resolve(true);
+                        });
+                    } else if (optionalParentTile && optionalParentTile.tileid) {
+                        // parent tile already exists
+                        resolve(false);
+                        return;
+                    } else {
+                        const tile = self.getNewTile();
+                        tile.save((err) => {
+                            reject(err);
+                        }, () => {
+                            resolve(true);
+                        });
+                    }
+                });
+            },
+
+            getNewTile: function(forceNewTile) {
+                if (!this.newTile || forceNewTile) this.newTile = new TileViewModel({
                     tile: {
                         tileid: '',
                         resourceinstance_id: ko.unwrap(params.resourceId),
@@ -352,26 +389,25 @@ define([
                 return this.newTile;
             },
             isFuncNode: function() {
-                var appFuncDesc = false, appFuncName = false, nodegroupId = null;
-                if(params.appliedFunctions && params.card) {
-                    for(var i=0; i < self.appliedFunctions.length; i++) {
-                        if(self.appliedFunctions[i]['function_id'] == "60000000-0000-0000-0000-000000000001") {
-                            if(self.appliedFunctions[i]['config']['description']['nodegroup_id']) {
-                                appFuncDesc = self.appliedFunctions[i]['config']['description']['nodegroup_id'];
-                            }
-                            if(self.appliedFunctions[i]['config']['name']['nodegroup_id']) {
-                                appFuncName = self.appliedFunctions[i]['config']['name']['nodegroup_id'];
-                            }
-                            nodegroupId = params.card.nodegroup_id;
-                            if(nodegroupId === appFuncDesc) {
-                                return arches.translations.cardFunctionNodeDesc;
-                            } else if(nodegroupId === appFuncName) {
-                                return arches.translations.cardFunctionNodeName;
-                            }
-                        }
+                var primaryDescriptorNodes = {}, pdFunction = params.primaryDescriptorFunction;
+
+                if(!pdFunction || !params.card)
+                    return false;
+
+                ['name', 'description'].forEach(function(descriptor) {
+                    try {
+                        primaryDescriptorNodes[pdFunction['config']['descriptor_types'][descriptor]['nodegroup_id']] = descriptor;
+                    } catch (e) {
+                        // Descriptor doesn't exist so ignore the exception
+                        console.log("No descriptor configuration for "+descriptor);
                     }
-                }
-                return false;
+                });
+
+                return !primaryDescriptorNodes[params.card.nodegroup_id] ? false :
+                    (primaryDescriptorNodes[params.card.nodegroup_id] === "name" ?
+                        arches.translations.cardFunctionNodeName :
+                        arches.translations.cardFunctionNodeDesc
+                    );
             }
         });
 
@@ -398,15 +434,17 @@ define([
 
         this.isDirty = function(){
             // Returns true if a tile is dirty and dirty state is not triggered by default values.
-            if(self.newTile) {
-                if(self.newTile.dirty()) {
+            var tile = self.newTile;
+
+            if(tile) {
+                if(tile.dirty()) {
                     var res = {};
                     self.widgets().forEach(function(w){
                         res[w.node.nodeid] = ko.unwrap(w.config.defaultValue);
                     });
-                    for (var k in self.newTile.data) {
+                    for (var k in tile.data) {
                         if (Object.keys(res).indexOf(k) > -1) {
-                            if ((res[k]||null) == (self.newTile.data[k]()||null) !== true) {
+                            if ((res[k]||null) == (tile.data[k]()||null) !== true) {
                                 return true;
                             } else {
                                 return false;
@@ -415,6 +453,7 @@ define([
                     }
                 }
             }
+
             return false;
         };
 

@@ -47,6 +47,7 @@ DATABASES = {
     }
 }
 
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 PG_SUPERUSER = ""
 PG_SUPERUSER_PW = ""
 
@@ -72,7 +73,8 @@ ELASTICSEARCH_PREFIX = "arches"
 ELASTICSEARCH_CUSTOM_INDEXES = []
 # [{
 #     'module': 'my_project.search_indexes.sample_index.SampleIndex',
-#     'name': 'my_new_custom_index'
+#     'name': 'my_new_custom_index',
+#     'should_update_asynchronously': False
 # }]
 
 
@@ -89,6 +91,7 @@ RESOURCE_FORMATTERS = {
     "csv": "arches.app.utils.data_management.resources.formats.csvfile.CsvWriter",
     "json": "arches.app.utils.data_management.resources.formats.archesfile.ArchesFileWriter",
     "tilecsv": "arches.app.utils.data_management.resources.formats.csvfile.TileCsvWriter",
+    "tilexl": "arches.app.utils.data_management.resources.formats.excel.ExcelWriter",
     "shp": "arches.app.utils.data_management.resources.formats.shpfile.ShpWriter",
     "xml": "arches.app.utils.data_management.resources.formats.rdffile.RdfWriter",
     "pretty-xml": "arches.app.utils.data_management.resources.formats.rdffile.RdfWriter",
@@ -96,6 +99,7 @@ RESOURCE_FORMATTERS = {
     "n3": "arches.app.utils.data_management.resources.formats.rdffile.RdfWriter",
     "nt": "arches.app.utils.data_management.resources.formats.rdffile.RdfWriter",
     "trix": "arches.app.utils.data_management.resources.formats.rdffile.RdfWriter",
+    "html": "arches.app.utils.data_management.resources.formats.htmlfile.HtmlWriter",
 }
 
 # Hide nodes and cards in a report that have no data
@@ -128,6 +132,10 @@ JSONLD_CONTEXT_CACHE_TIMEOUT = 43800  # in minutes (43800 minutes ~= 1 month)
 # Make sure to use a trailing slash
 ARCHES_NAMESPACE_FOR_DATA_EXPORT = "http://localhost:8000/"
 
+# This is used to indicate whether the data in the CSV and SHP exports should be
+# ordered as seen in the resource cards or not.
+EXPORT_DATA_FIELDS_IN_CARD_ORDER = False
+
 RDM_JSONLD_CONTEXT = {"arches": ARCHES_NAMESPACE_FOR_DATA_EXPORT}
 
 PREFERRED_COORDINATE_SYSTEMS = (
@@ -154,6 +162,12 @@ EMAIL_HOST_USER = "xxxx@xxx.com"
 # EMAIL_PORT = 587
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# If True, allows for user self creation via the signup view. If False, users can only be created via the Django admin view.
+ENABLE_USER_SIGNUP = True
+
+# If True, users must authenticate their accout via email to complete the account creation process.
+FORCE_USER_SIGNUP_EMAIL_AUTHENTICATION = True
 
 POSTGIS_VERSION = (3, 0, 0)
 
@@ -201,7 +215,7 @@ LANGUAGE_CODE = "en"
 # a list of language codes can be found here http://www.i18nguy.com/unicode/language-identifiers.html
 LANGUAGES = [
     # ("de", _("German")),
-    # ("en", _("English")),
+    ("en", "English"),
     # ("en-gb", _("British English")),
     # ("es", _("Spanish")),
     # ("ar", _("Arabic")),
@@ -219,20 +233,26 @@ LOCALE_PATHS = [
 # calendars according to the current locale
 USE_L10N = True
 
-# Absolute filesystem path to the directory that will hold user-uploaded files.
-MEDIA_ROOT = os.path.join(ROOT_DIR)
-
 # Sets default max upload size to 15MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 15728640
-
-# URL that handles the media served from MEDIA_ROOT, used for managing stored files.
-# It must end in a slash if set to a non-empty value.
-MEDIA_URL = "/files/"
 
 # By setting RESTRICT_MEDIA_ACCESS to True, media file requests will be
 # served by Django rather than your web server (e.g. Apache). This allows file requests to be checked against nodegroup permissions.
 # However, this will adversely impact performace when serving large files or during periods of high traffic.
 RESTRICT_MEDIA_ACCESS = False
+
+
+# By setting RESTRICT_CELERY_EXPORT_FOR_ANONYMOUS_USER to True, if the user is attempting
+# to export search results above the SEARCH_EXPORT_IMMEDIATE_DOWNLOAD_THRESHOLD
+# value and is not signed in with a user account then the request will not be allowed.
+RESTRICT_CELERY_EXPORT_FOR_ANONYMOUS_USER = False
+
+# Absolute filesystem path to the directory that will hold user-uploaded files.
+MEDIA_ROOT = os.path.join(ROOT_DIR)
+
+# URL that handles the media served from MEDIA_ROOT, used for managing stored files.
+# It must end in a slash if set to a non-empty value.
+MEDIA_URL = "/files/"
 
 # Absolute path to the directory static files should be collected to.
 # Don't put anything in this directory yourself; store your static files
@@ -243,6 +263,9 @@ STATIC_ROOT = ""
 # URL prefix for static files.
 # Example: "http://media.lawrence.com/static/"
 STATIC_URL = "/media/"
+
+# when hosting Arches under a sub path set this value to the sub path eg : "/{sub_path}/"
+FORCE_SCRIPT_NAME = None
 
 # URL prefix for admin static files -- CSS, JavaScript and images.
 # Make sure to use a trailing slash.
@@ -262,6 +285,7 @@ STATICFILES_DIRS = (
 STATICFILES_FINDERS = (
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+    "compressor.finders.CompressorFinder",
     #    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
 
@@ -319,8 +343,8 @@ AUTHENTICATION_BACKENDS = (
     "arches.app.utils.email_auth_backend.EmailAuthenticationBackend",
     "oauth2_provider.backends.OAuth2Backend",
     "django.contrib.auth.backends.ModelBackend",  # this is default
-    "guardian.backends.ObjectPermissionBackend",
     "arches.app.utils.permission_backend.PermissionBackend",
+    "guardian.backends.ObjectPermissionBackend",
 )
 
 INSTALLED_APPS = (
@@ -339,12 +363,11 @@ INSTALLED_APPS = (
     "revproxy",
     "corsheaders",
     "oauth2_provider",
-    "django_celery_results"
-    # 'debug_toolbar'
+    "django_celery_results",
+    "compressor",
 )
 
 MIDDLEWARE = [
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -431,7 +454,13 @@ if DEBUG is True:
 # group to assign users who self sign up via the web ui
 USER_SIGNUP_GROUP = "Crowdsource Editor"
 
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"}}
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "unique-snowflake"},
+    "user_permission": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "user_permission_cache",
+    },
+}
 
 DEFAULT_RESOURCE_IMPORT_USER = {"username": "admin", "userid": 1}
 
@@ -456,7 +485,6 @@ TIMEWHEEL_DATE_TIERS = None
 # Identify the usernames and duration (seconds) for which you want to cache the timewheel
 CACHE_BY_USER = {"anonymous": 3600 * 24}
 
-BYPASS_CARDINALITY_TILE_VALIDATION = True
 BYPASS_UNIQUE_CONSTRAINT_TILE_VALIDATION = False
 BYPASS_REQUIRED_VALUE_TILE_VALIDATION = False
 
@@ -498,6 +526,10 @@ PHONE_REGEX = r"^\+\d{8,15}$"
 SEARCH_ITEMS_PER_PAGE = 5
 SEARCH_EXPORT_LIMIT = 100000
 SEARCH_EXPORT_IMMEDIATE_DOWNLOAD_THRESHOLD = 2000  # The maximum number of instances a user can download from search export without celery
+
+# The maximum number of instances a user can download using HTML format from search export without celery
+SEARCH_EXPORT_IMMEDIATE_DOWNLOAD_THRESHOLD_HTML_FORMAT = 10
+
 RELATED_RESOURCES_PER_PAGE = 15
 RELATED_RESOURCES_EXPORT_LIMIT = 10000
 SEARCH_DROPDOWN_LENGTH = 100
@@ -550,6 +582,13 @@ FUNCTION_LOCATIONS = [
 SEARCH_COMPONENT_LOCATIONS = [
     "arches.app.search.components",
 ]
+
+ETL_MODULE_LOCATIONS = [
+    "arches.app.etl_modules",
+]
+
+FILE_TYPE_CHECKING = False
+FILE_TYPES = ["bmp", "gif", "jpg", "jpeg", "pdf", "png", "psd", "rtf", "tif", "tiff", "xlsx", "csv", "zip"]
 
 MAPBOX_API_KEY = ""  # Put your Mapbox key here!
 
@@ -605,9 +644,23 @@ CELERY_BEAT_SCHEDULE = {
     "notification": {"task": "arches.app.tasks.message", "schedule": CELERY_SEARCH_EXPORT_CHECK, "args": ("Celery Beat is Running",)},
 }
 
+# Set to True if you want to send celery tasks to the broker without being able to detect celery.
+# This might be necessary if the worker pool is regulary fully active, with no idle workers, or if
+# you need to run the celery task using solo pool (e.g. on Windows). You may need to provide another
+# way of monitoring celery so you can detect the background task not being available.
+CELERY_CHECK_ONLY_INSPECT_BROKER = False
+
 AUTO_REFRESH_GEOM_VIEW = True
 TILE_CACHE_TIMEOUT = 600  # seconds
+CLUSTER_DISTANCE_MAX = 5000  # meters
 GRAPH_MODEL_CACHE_TIMEOUT = None  # seconds * hours * days = ~1mo
+
+CANTALOUPE_DIR = os.path.join(ROOT_DIR, "uploadedfiles")
+CANTALOUPE_HTTP_ENDPOINT = "http://localhost:8182/"
+
+ACCESSIBILITY_MODE = False
+
+COMPRESS_PRECOMPILERS = (("text/x-scss", "django_libsass.SassCompiler"),)
 
 RENDERERS = [
     {
@@ -670,7 +723,6 @@ JSON_LD_SORT_FUNCTIONS = [lambda x: x.get("@id", "~")]
 
 def JSON_LD_FIX_DATA_FUNCTION(data, jsdata, model):
     return jsdata
-
 
 ##########################################
 ### END RUN TIME CONFIGURABLE SETTINGS ###

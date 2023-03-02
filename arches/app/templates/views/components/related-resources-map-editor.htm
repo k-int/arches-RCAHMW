@@ -18,9 +18,11 @@
     <div class="workbench-card-sidepanel-header-container">
         <h4 class="workbench-card-sidepanel-header" data-bind="click: hideSidePanel, text: card.model.name"></h4>
     </div>
+    <div class="workbench-card-sidepanel-border"></div>
 
-
-    <div style="margin: 70px 10px 0px;">
+    <div class="workbench-card-sidepanel-body">
+    <!-- ko if: !self.coordinateEditing() -->
+    <div style="margin: 10px 10px 0px;">
         <div class='control-label widget-input-label'>{% trans "Participating Layers" %}</div>
         <!-- ko foreach: {data: self.nodeDetails, as: 'nodeInfo'} -->
         <div data-bind="css: {'active-overlay': self.filterNodeIds.indexOf(nodeInfo.nodeid) > -1}">
@@ -37,8 +39,11 @@
         </div>
         <!-- /ko -->
     </div>
+    <!-- /ko -->
 
-    <div data-bind="css: card.model.cssclass" style="height: calc(100% - 80px)">        
+    <div data-bind="css: card.model.cssclass">
+        {% block additional_content %}
+        {% endblock additional_content %}
         <!-- ko if: reviewer && provisionalTileViewModel.selectedProvisionalEdit() -->
         <div class="edit-message-container">
             <span>{% trans 'Showing edits by' %}</span>
@@ -99,14 +104,6 @@
                     mode: { name: 'javascript', json: true },
                     lineNumbers: true
                 }"></div>
-                <div class="install-buttons">
-                    <button class="btn btn-shim btn-danger btn-labeled btn-lg fa fa-times" data-bind="click: function () {
-                        geoJSONString(undefined);
-                    }">{% trans 'Cancel' %}</button>
-                    <button class="btn btn-shim btn-labeled btn-lg fa fa-plus btn-mint" data-bind="css: {
-                        disabled: geoJSONErrors().length !== 0
-                    }, click: updateGeoJSON">{% trans 'Update Features' %}</button>
-                </div>
                 <!-- ko if: geoJSONErrors().length !== 0 -->
                 <div class="geojson-error-list">
                     {% trans "GeoJSON has the following errors that must be resolved:" %}
@@ -127,30 +124,6 @@
                     data:card.widgets, as: 'widget'
                 }">
                 <!-- ko if: ko.unwrap(self.form.nodeLookup[widget.node_id()].datatype) === 'geojson-feature-collection' -->
-                    <!--ko if: self.featureLookup[widget.node_id()].features -->
-                    <div class="rr-map-card-intersect-panel">
-                    <div class='control-label widget-input-label'>{% trans "Select a feature to perform intersection" %}</div>
-                    <table class="table">
-                        <tbody>
-                        <!-- ko foreach: {data: self.featureLookup[widget.node_id()].features, as: 'feature'} -->
-                        <tr class="map-card-feature-item" data-bind="css: {'active': self.mapFilter.searchGeometries().length && self.mapFilter.searchGeometries().find(function(x){return x.id === feature.id})};">
-                            <td>
-                                <span class="map-card-feature-name" data-bind="text: feature.geometry.type"></span>
-                            </td>
-                            <td class="map-card-feature-tool intersect">
-                                <a href="javascript:void(0);" data-bind="
-                                click: function(){self.mapFilter.makeSearchFeature(feature)}">
-                                    <i class="fa fa-pencil map-card-feature-edit"></i>
-                                    {% trans "Intersect" %}
-                                </a>
-                            </td>
-                        </tr>
-                        <!-- /ko -->
-                        </tbody>
-                    </table>
-                    </div>
-                    <!-- /ko -->
-
                     <div class="rr-map-card-intersect-panel">
                         <div class='control-label widget-input-label'>{% trans "Buffer Intersecting Feature" %}</div>
                         <div class="buffer-control" style="padding-left: 0px">
@@ -168,16 +141,36 @@
                             </div>
                         </div>
                     </div>
-                    <!-- /ko -->
-                </div>
 
-                <div class="install-buttons">
-                    <button class="btn btn-shim btn-danger btn-labeled btn-lg fa fa-times" data-bind="click: function () {
-                        showRelatedQuery(false);
-                    }">{% trans 'Close' %}</button>
+                    <!--ko if: self.featureLookup[widget.node_id()].features -->
+                    <div class="rr-map-card-intersect-panel">
+                        <div class='control-label widget-input-label'>{% trans "Select a feature to perform intersection" %}</div>
+                        <table class="table">
+                            <tbody>
+                            <!-- ko foreach: {data: self.featureLookup[widget.node_id()].features, as: 'feature'} -->
+                            <tr class="map-card-feature-item" data-bind="css: {'active': self.mapFilter.searchGeometries().length && self.mapFilter.searchGeometries().find(function(x){return x.id === feature.id})};">
+                                <td>
+                                    <span class="map-card-feature-name" data-bind="text: feature.geometry.type"></span>
+                                </td>
+                                <td class="map-card-feature-tool intersect">
+                                    <a href="javascript:void(0);" data-bind="
+                                    click: function(){self.mapFilter.makeSearchFeature(feature)}">
+                                        <i class="fa fa-pencil map-card-feature-edit"></i>
+                                        {% trans "Intersect" %}
+                                    </a>
+                                </td>
+                            </tr>
+                            <!-- /ko -->
+                            </tbody>
+                        </table>
+                        </div>
+                        <!-- /ko -->
+                    <!-- /ko -->
                 </div>
             </div>
             <!-- /ko-->
+            
+            {% include 'views/components/coordinate-editor.htm' %}
 
             <div class="card" style="padding-top: 45px;" data-bind="visible: geoJSONString() === undefined && showRelatedQuery() === false">
                 {% block form_header %}
@@ -284,6 +277,20 @@
                                                 {% trans "Find" %}
                                             </a>
                                             |
+                                            <!-- ko if: self.canEditCoordinates() -->
+                                                <a href="javascript:void(0);" data-bind="click: function() {
+                                                    self.coordinateEditing(true);
+                                                }">
+                                                    <i class="fa fa-list map-card-feature-edit"></i>
+                                                    {% trans "Edit Coordinates" %}
+                                                </a>
+                                                <!-- /ko -->
+                                                <!-- ko if: !self.canEditCoordinates() -->
+                                                    <span>
+                                                        <i class="fa fa-list map-card-feature-edit"></i>
+                                                        {% trans "Edit Coordinates" %}
+                                                    </span>
+                                                <!-- /ko -->
                                             <!--/ko-->
                                             <a href="javascript:void(0);" data-bind="click: function() {
                                                 self.editGeoJSON(self.featureLookup[widget.node_id()].features(), widget.node_id());
@@ -297,7 +304,7 @@
                                                 self.fitFeatures(self.featureLookup[widget.node_id()].features());
                                             }">
                                                 <i class="fa fa-search map-card-feature-edit"></i>
-                                                {% trans "Zoom to all features" %}
+                                                {% trans "Zoom to all" %}
                                             </a>
                                             <!-- /ko -->
                                         </div>
@@ -359,6 +366,24 @@
             </div>
         </div>
     </div>
+</div>
+<!-- ko if: showRelatedQuery() -->
+<div class="display-in-workflow-step">
+    <button class="btn btn-shim btn-labeled btn-lg fa fa-check btn-primary" data-bind="click: function () {
+        showRelatedQuery(false);
+    }">{% trans 'Done' %}</button>
+</div>
+<!--/ko -->
+<!-- ko if: geoJSONString() -->
+<div class="display-in-workflow-step">
+    <button class="btn btn-shim btn-danger btn-labeled btn-lg fa fa-times" data-bind="click: function () {
+        geoJSONString(undefined);
+    }">{% trans 'Cancel' %}</button>
+    <button class="btn btn-shim btn-labeled btn-lg fa fa-plus btn-mint" data-bind="css: {
+        disabled: geoJSONErrors().length !== 0
+    }, click: updateGeoJSON">{% trans 'Update Features' %}</button>
+</div>
+<!-- /ko -->
 <!--/ko -->
 {{ block.super }}
 {% endblock sidepanel %}

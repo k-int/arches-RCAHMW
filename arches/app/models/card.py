@@ -16,13 +16,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 
+import uuid
 from django.db import transaction
 from django.db.models import Q
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import ModelForm
 from arches.app.models import models
 from arches.app.utils.betterJSONSerializer import JSONSerializer
-from django.core.cache import cache
 
 
 class Card(models.CardModel):
@@ -47,25 +47,31 @@ class Card(models.CardModel):
             constraintid = constraint.get("constraintid", None)
             unique_to_all = constraint.get("uniquetoallinstances", False)
             nodeids = constraint.get("nodes", [])
-            try:
-                constraint_model = models.ConstraintModel.objects.get(pk=constraintid)
-                constraint_model.uniquetoallinstances = unique_to_all
-                current_nodeids = {str(i.nodeid) for i in constraint_model.nodes.all()}
-                future_nodeids = set(nodeids)
-                nodes_to_remove = current_nodeids - future_nodeids
-                nodes_to_add = future_nodeids - current_nodeids
-                add_nodeconstraints(nodes_to_add, constraint_model)
-                models.ConstraintXNode.objects.filter(Q(constraint=constraint_model) & Q(node__in=nodes_to_remove)).delete()
-                constraint_model.save()
-            except ObjectDoesNotExist as e:
-                constraint_model = models.ConstraintModel()
-                constraint_model.card = self
-                constraint_model.constraintid = constraintid
-                constraint_model.uniquetoallinstances = unique_to_all
-                constraint_model.save()
-                add_nodeconstraints(nodeids, constraint_model)
-                constraint_model.save()
-            constraint_models.append(constraint_model)
+            if nodeids:
+                try:
+                    constraint_model = models.ConstraintModel.objects.get(pk=constraintid)
+                    constraint_model.uniquetoallinstances = unique_to_all
+                    current_nodeids = {str(i.nodeid) for i in constraint_model.nodes.all()}
+                    future_nodeids = set(nodeids)
+                    nodes_to_remove = current_nodeids - future_nodeids
+                    nodes_to_add = future_nodeids - current_nodeids
+                    add_nodeconstraints(nodes_to_add, constraint_model)
+                    models.ConstraintXNode.objects.filter(Q(constraint=constraint_model) & Q(node__in=nodes_to_remove)).delete()
+                    constraint_model.save()
+                except ObjectDoesNotExist:
+                    constraint_model = models.ConstraintModel()
+                    constraint_model.card = self
+                    constraint_model.constraintid = constraintid
+                    constraint_model.uniquetoallinstances = unique_to_all
+                    constraint_model.save()
+                    add_nodeconstraints(nodeids, constraint_model)
+                    constraint_model.save()
+                constraint_models.append(constraint_model)
+            else:
+                try:
+                    models.ConstraintModel.objects.get(pk=constraintid).delete()
+                except ObjectDoesNotExist:
+                    pass
         self.constraints = constraint_models
 
     def __init__(self, *args, **kwargs):
@@ -118,6 +124,8 @@ class Card(models.CardModel):
         self.ontologyproperty = None
         self.constraints = []
 
+        self.datatypes = list(models.DDataType.objects.all())
+
         if args:
             if isinstance(args[0], dict):
                 for key, value in args[0].items():
@@ -153,6 +161,7 @@ class Card(models.CardModel):
                         widget_model.visible = widget.get("visible", None)
                         widget_model.sortorder = widget.get("sortorder", None)
                         if widget_model.pk is None:
+                            widget_model.pk = uuid.uuid4()
                             widget_model.save()
                         self.widgets.append(widget_model)
 
@@ -170,7 +179,7 @@ class Card(models.CardModel):
 
                 sub_groups = models.NodeGroup.objects.filter(parentnodegroup=self.nodegroup)
                 for sub_group in sub_groups:
-                    self.cards.extend(Card.objects.filter(nodegroup=sub_group))
+                    self.cards.extend(Card.objects.select_related("nodegroup").filter(nodegroup=sub_group))
 
                 self.cardinality = self.nodegroup.cardinality
 
@@ -237,7 +246,6 @@ class Card(models.CardModel):
         serialize to a different form than used by the internal class structure
 
         """
-
         exclude = [] if exclude is None else exclude
         ret = JSONSerializer().handle_model(self, fields, exclude)
 
@@ -258,13 +266,15 @@ class Card(models.CardModel):
         # even if a widget hasn't been configured
         ret["widgets"] = self.widgets
         if "widgets" not in exclude:
+            widgets = self.datatypes
+
             for node in ret["nodes"]:
                 found = False
                 for widget in ret["widgets"]:
                     if node.nodeid == widget.node_id:
                         found = True
                 if not found:
-                    widget = models.DDataType.objects.get(pk=node.datatype).defaultwidget
+                    widget = [widget for widget in widgets if widget.pk == node.datatype][0].defaultwidget
                     if widget:
                         widget_model = models.CardXNodeXWidget()
                         widget_model.node_id = node.nodeid

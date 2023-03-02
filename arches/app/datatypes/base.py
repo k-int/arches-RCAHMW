@@ -12,15 +12,31 @@ logger = logging.getLogger(__name__)
 class BaseDataType(object):
     def __init__(self, model=None):
         self.datatype_model = model
+        self.datatype_name = model.datatype if model else None
 
-    def validate(self, value, row_number=None, source=None, node=None, nodeid=None):
+    def validate(self, value, row_number=None, source=None, node=None, nodeid=None, strict=False, **kwargs):
+        """
+        Used to validate data in a node of given datatype
+
+        Arguments:
+        value -- (required) the value of the node being validated
+
+        Keyword Arguments:
+        row_number -- (optional) this is specific to csv import and should be removed
+        source -- (optional) this is specific to csv import and should be removed
+        node -- (optional) the node instance being validated
+        node -- (optional) the node id of the instance begin validated
+        strict -- False (default), set to True to force the datatype to perform a more complete check
+            (eg: check for the existance of a referenced resoure on the resource-instance datatype)
+        """
+
         return []
 
     def create_error_message(self, value, source, row_number, message):
         source_info = "{0} {1}".format(source, row_number) if row_number else ""
         error_message = {
             "type": "ERROR",
-            "message": _("{0} error, {1} {2} - {3}. Unable to save.").format(self.datatype_model.datatype, value, source_info, message),
+            "message": _("{0} error, {1} {2} - {3}. Unable to save.").format(self.datatype_name, value, source_info, message),
         }
         return error_message
 
@@ -31,9 +47,9 @@ class BaseDataType(object):
         """
         pass
 
-    def after_update_all(self):
+    def after_update_all(self, tile=None):
         """
-        Refreshes mv_geojson_geoms materialized view after save.
+        Refreshes geojson_geometries table after save.
         """
         pass
 
@@ -274,15 +290,16 @@ class BaseDataType(object):
             base_query.must(null_query)
         query.must(base_query)
 
-    def handle_request(self, current_tile, request, node):
-        """
-        Updates files
-        """
-        pass
-
     def pre_tile_save(self, tile, nodeid):
         """
         Called during tile.save operation but before the tile is actually saved to the database
+
+        """
+        pass
+
+    def post_tile_save(self, tile, nodeid, request):
+        """
+        Called after the tile is saved to the database
 
         """
         pass
@@ -356,11 +373,11 @@ class BaseDataType(object):
 
     def ignore_keys(self):
         """
-        Each entry returned in the array is a string, consisting of the combination of two full URIs 
-        separated by a space -- the first is the URI of the property in the ontology, 
-        and the second is the class of the value of the property. 
-        When this key is encountered in incoming data, it will be ignored. 
-        This is useful for either when the data is handled internally by the datatype, 
+        Each entry returned in the array is a string, consisting of the combination of two full URIs
+        separated by a space -- the first is the URI of the property in the ontology,
+        and the second is the class of the value of the property.
+        When this key is encountered in incoming data, it will be ignored.
+        This is useful for either when the data is handled internally by the datatype,
         or when the incoming data has annotations that should not be persisted.
         """
 
@@ -389,8 +406,33 @@ class BaseDataType(object):
         ret = None
         default_mapping = self.default_es_mapping()
         if default_mapping:
-            ret = {"properties": {"tiles": {"type": "nested", "properties": {"data": {"properties": {str(nodeid): default_mapping}}},}}}
+            ret = {
+                "properties": {
+                    "tiles": {
+                        "type": "nested",
+                        "properties": {"data": {"properties": {str(nodeid): default_mapping}}},
+                    }
+                }
+            }
         return ret
 
-    def disambiguate(self, value):
-        return value
+    def to_json(self, tile, node):
+        """
+        Returns a value for display in a json object
+        """
+        return self.compile_json(tile, node)
+
+    def compile_json(self, tile, node, **kwargs):
+        """
+        Compiles an object for presentation for use in the to_json method
+        Arguments:
+        tile -- (required) the tile model for the datatype
+        node -- (required) the node model related to the tile
+
+        Keyword Arguments:
+        optional number of arguments to add to the opject
+        """
+
+        ret = {"@display_value": self.get_display_value(tile, node)}
+        ret.update(kwargs)
+        return ret
