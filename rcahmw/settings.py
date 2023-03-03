@@ -89,6 +89,7 @@ INSTALLED_APPS = (
     'oauth2_provider',
     'django_celery_results',
     'rcahmw',
+    'compressor'
 )
 
 ALLOWED_HOSTS = ['10.9.3.9']
@@ -149,7 +150,11 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
         'LOCATION': '127.0.0.1:11211',
-    }
+    },
+    "user_permission": {
+        "BACKEND": "django.core.cache.backends.memcached.MemcachedCache",
+        "LOCATION": "127.0.0.1:11211",
+},
 }
 
 #Identify the usernames and duration (seconds) for which you want to cache the time wheel
@@ -191,6 +196,23 @@ CELERY_BEAT_SCHEDULE = {
     "delete-expired-search-export": {"task": "arches.app.tasks.delete_file", "schedule": CELERY_SEARCH_EXPORT_CHECK,},
     "notification": {"task": "arches.app.tasks.message", "schedule": CELERY_SEARCH_EXPORT_CHECK, "args": ("Celery Beat is Running",),},
 }
+
+EXPORT_DATA_FIELDS_IN_CARD_ORDER = False
+CLUSTER_DISTANCE_MAX = 5000 #meters
+RESTRICT_CELERY_EXPORT_FOR_ANONYMOUS_USER = False
+CELERY_CHECK_ONLY_INSPECT_BROKER = False
+
+FILE_TYPE_CHECKING = False # If True, only the file types listed in FILE_TYPES can be uploaded to Arches
+FILE_TYPES = ["bmp", "gif", "jpg", "jpeg", "pdf", "png", "psd", "rtf", "tif", "tiff", "xlsx", "csv", "zip"]
+# File types that can be uploaded to Arches if FILE_TYPE_CHECKING is True.
+
+LANGUAGE_CODE = "en"
+LANGUAGES = [
+#   ('de', _('German')),
+    ('en', ('English')),
+#   ('en-gb', _('British English')),
+#   ('es', _('Spanish')),
+]
 
 try:
     from .package_settings import *

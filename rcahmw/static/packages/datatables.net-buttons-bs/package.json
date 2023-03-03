@@ -1,37 +1,53 @@
 {
     "name": "datatables.net-buttons-bs",
-    "version": "1.6.2",
-    "description": "Buttons for DataTables with styling for [Bootstrap 3](http://getbootstrap.com/)",
+    "description": "Buttons for DataTables with styling for [Bootstrap](https://getbootstrap.com/docs/3.3/)",
+    "main": "js/buttons.bootstrap.js",
+    "module": "js/buttons.bootstrap.mjs",
+    "style": "css/buttons.bootstrap.css",
+    "types": "./types/types.d.ts",
+    "version": "2.3.5",
     "files": [
         "css/**/*.css",
-        "js/**/*.js"
+        "js/**/*.js",
+        "js/**/*.mjs",
+        "types/**/*.d.ts"
     ],
-    "main": "js/buttons.bootstrap.js",
-    "style": "css/buttons.bootstrap.css",
     "keywords": [
-        "buttons",
+        "Buttons",
+        "Column Visibility",
+        "csv",
         "excel",
         "pdf",
-        "csv",
-        "column visibility",
         "print",
-        "DataTables",
+        "Bootstrap",
+        "Datatables",
         "jQuery",
         "table",
-        "Bootstrap"
+        "filter",
+        "sort"
     ],
-    "homepage": "https://datatables.net",
-    "bugs": "https://datatables.net/forums",
-    "license": "MIT",
+    "dependencies": {
+        "datatables.net-buttons": ">=2.2.3",
+        "datatables.net-bs": ">=1.12.1",
+        "jquery": ">=1.7"
+    },
+    "moduleType": [
+        "globals",
+        "amd",
+        "node"
+    ],
+    "ignore": [
+        "composer.json",
+        "datatables.json",
+        "package.json"
+    ],
     "author": {
         "name": "SpryMedia Ltd",
         "url": "http://datatables.net"
     },
-    "dependencies": {
-        "jquery": ">=1.7",
-        "datatables.net-bs": "^1.10.15",
-        "datatables.net-buttons": "1.6.2"
-    },
+    "homepage": "https://datatables.net",
+    "bugs": "https://datatables.net/forums",
+    "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/DataTables/Dist-DataTables-Buttons-Bootstrap.git"

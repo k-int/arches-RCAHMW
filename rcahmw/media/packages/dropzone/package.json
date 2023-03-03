@@ -1,49 +1,56 @@
 {
   "name": "dropzone",
-  "version": "3.8.4",
+  "version": "5.7.0",
   "description": "Handles drag and drop of files for you.",
-  "keywords": [ "dragndrop", "drag and drop", "file upload", "upload" ],
+  "keywords": [
+    "dragndrop",
+    "drag and drop",
+    "file upload",
+    "upload"
+  ],
   "homepage": "http://www.dropzonejs.com",
-  "main": [ "./lib/dropzone.js" ],
-  "maintainers": [{
+  "main": "./dist/dropzone.js",
+  "maintainers": [
+    {
       "name": "Matias Meno",
       "email": "m@tias.me",
-      "web": "http://www.matiasmeno.com"
-  }],
-  "contributors": [{
+      "web": "http://www.colorglare.com"
+    }
+  ],
+  "contributors": [
+    {
       "name": "Matias Meno",
       "email": "m@tias.me",
-      "web": "http://www.matiasmeno.com"
-  }],
+      "web": "http://www.colorglare.com"
+    }
+  ],
   "scripts": {
-    "test": "./test.sh"
+    "test": "grunt && npm run test-prebuilt",
+    "test-prebuilt": "mocha-headless-chrome -f test/test-prebuilt.html -a no-sandbox -a disable-setuid-sandbox"
   },
   "bugs": {
     "email": "m@tias.me",
-    "url": "https://github.com/enyo/dropzone/issues"
+    "url": "https://gitlab.com/meno/dropzone/issues"
   },
-  "licenses": [{
-      "type": "MIT",
-      "url": "http://www.opensource.org/licenses/MIT" 
-  }],
+  "license": "MIT",
   "repository": {
-      "type": "git",
-      "url": "https://github.com/enyo/dropzone.git" 
+    "type": "git",
+    "url": "https://gitlab.com/meno/dropzone.git"
   },
-  "dependencies": { },
   "devDependencies": {
-    "grunt": "*",
-    "grunt-contrib-coffee": "*",
-    "grunt-contrib-concat": "*",
-    "grunt-contrib-stylus": "*",
-    "grunt-contrib-uglify": "*",
-    "grunt-component-build": "*",
-    "grunt-contrib-copy": "*",
-    "grunt-contrib-watch": "*",
-    "mocha-phantomjs": "3.1.x",
-    "mocha": "1.12.x",
-    "sinon": "1.7.x",
-    "chai": "1.7.x"
+    "@babel/core": "^7.8.4",
+    "@babel/preset-env": "^7.8.4",
+    "chai": "4.2.x",
+    "grunt": "^1.0.4",
+    "grunt-babel": "^8.0.0",
+    "grunt-contrib-concat": "^1.0.1",
+    "grunt-contrib-sass": "^1.0.0",
+    "grunt-contrib-uglify": "^4.0.1",
+    "grunt-contrib-watch": "^1.1.0",
+    "grunt-text-replace": "^0.4.0",
+    "marked": "^0.8.0",
+    "mocha": "^7.0.1",
+    "mocha-headless-chrome": "^2.0.3",
+    "sinon": "8.1.1"
   }
-
 }

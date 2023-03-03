@@ -1,4 +1,4 @@
-/*! version : 4.17.47
+/*! version : 4.17.44
  =========================================================
  bootstrap-datetimejs
  https://github.com/Eonasdan/bootstrap-datetimepicker
@@ -453,15 +453,15 @@
                     widget.removeClass('pull-right');
                 }
 
-                // find the first parent element that has a non-static css positioning
-                if (parent.css('position') === 'static') {
+                // find the first parent element that has a relative css positioning
+                if (parent.css('position') !== 'relative') {
                     parent = parent.parents().filter(function () {
-                        return $(this).css('position') !== 'static';
+                        return $(this).css('position') === 'relative';
                     }).first();
                 }
 
                 if (parent.length === 0) {
-                    throw new Error('datetimepicker component should be placed within a non-static positioned container');
+                    throw new Error('datetimepicker component should be placed within a relative positioned container');
                 }
 
                 widget.css({
@@ -947,6 +947,7 @@
 
                 input.blur();
 
+                currentViewMode = 0;
                 viewDate = date.clone();
 
                 return picker;

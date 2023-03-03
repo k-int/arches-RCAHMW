@@ -1,4 +1,4 @@
-/* Mapbox GL JS is licensed under the 3-Clause BSD License. Full text of license: https://github.com/mapbox/mapbox-gl-js/blob/v1.11.0/LICENSE.txt */
+/* Mapbox GL JS is licensed under the 3-Clause BSD License. Full text of license: https://github.com/mapbox/mapbox-gl-js/blob/v1.13.3/LICENSE.txt */
 (function (global, factory) {
 typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 typeof define === 'function' && define.amd ? define(factory) :
@@ -34,7 +34,7 @@ function createCommonjsModule(fn, module) {
 	return module = { exports: {} }, fn(module, module.exports), module.exports;
 }
 
-var version = "1.11.0";
+var version = "1.13.3";
 
 var unitbezier = UnitBezier;
 function UnitBezier(p1x, p1y, p2x, p2y) {
@@ -277,6 +277,7 @@ function deepEqual(a, b) {
     return a === b;
 }
 
+var MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;
 function easeCubicInOut(t) {
     if (t <= 0) {
         return 0;
@@ -368,6 +369,12 @@ function uuid() {
         return a ? (a ^ Math.random() * 16 >> a / 4).toString(16) : ([10000000] + -[1000] + -4000 + -8000 + -100000000000).replace(/[018]/g, b);
     }
     return b();
+}
+function nextPowerOfTwo(value) {
+    if (value <= 1) {
+        return 1;
+    }
+    return Math.pow(2, Math.ceil(Math.log(value) / Math.LN2));
 }
 function validateUuid(str) {
     return str ? /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str) : false;
@@ -751,6 +758,12 @@ RequestManager.prototype._makeAPIURL = function _makeAPIURL(urlObject, accessTok
     var apiUrlObject = parseUrl(config.API_URL);
     urlObject.protocol = apiUrlObject.protocol;
     urlObject.authority = apiUrlObject.authority;
+    if (urlObject.protocol === 'http') {
+        var i = urlObject.params.indexOf('secure');
+        if (i >= 0) {
+            urlObject.params.splice(i, 1);
+        }
+    }
     if (apiUrlObject.path !== '/') {
         urlObject.path = '' + apiUrlObject.path + urlObject.path;
     }
@@ -920,9 +933,11 @@ var MapLoadEvent = function (TelemetryEvent) {
     MapLoadEvent.prototype.constructor = MapLoadEvent;
     MapLoadEvent.prototype.postMapLoadEvent = function postMapLoadEvent(tileUrls, mapId, skuToken, customAccessToken) {
         this.skuToken = skuToken;
-        if (config.EVENTS_URL && customAccessToken || config.ACCESS_TOKEN && Array.isArray(tileUrls) && tileUrls.some(function (url) {
-                return isMapboxURL(url) || isMapboxHTTPURL(url);
-            })) {
+        var accessTokenIsSet = !!(customAccessToken || config.ACCESS_TOKEN);
+        var usesMapboxTiles = Array.isArray(tileUrls) && tileUrls.some(function (url) {
+            return isMapboxURL(url) || isMapboxHTTPURL(url);
+        });
+        if (config.EVENTS_URL && accessTokenIsSet && usesMapboxTiles) {
             this.queueRequest({
                 id: mapId,
                 timestamp: Date.now()
@@ -1333,6 +1348,10 @@ function arrayBufferToImage(data, callback, cacheControl, expires) {
     img.onload = function () {
         callback(null, img);
         URL.revokeObjectURL(img.src);
+        img.onload = null;
+        window$1.requestAnimationFrame(function () {
+            img.src = transparentPngUrl;
+        });
     };
     img.onerror = function () {
         return callback(new Error('Could not load image. Please make sure to use a supported image type such as PNG or JPEG. Note that SVGs are not supported.'));
@@ -1638,6 +1657,10 @@ var source_vector = {
 	promoteId: {
 		type: "promoteId"
 	},
+	volatile: {
+		type: "boolean",
+		"default": false
+	},
 	"*": {
 		type: "*"
 	}
@@ -1694,6 +1717,10 @@ var source_raster = {
 	},
 	attribution: {
 		type: "string"
+	},
+	volatile: {
+		type: "boolean",
+		"default": false
 	},
 	"*": {
 		type: "*"
@@ -1752,6 +1779,10 @@ var source_raster_dem = {
 		},
 		"default": "mapbox"
 	},
+	volatile: {
+		type: "boolean",
+		"default": false
+	},
 	"*": {
 		type: "*"
 	}
@@ -1780,6 +1811,9 @@ var source_geojson = {
 		"default": 128,
 		maximum: 512,
 		minimum: 0
+	},
+	filter: {
+		type: "*"
 	},
 	tolerance: {
 		type: "number",
@@ -3014,260 +3048,6 @@ var expression = {
 	type: "array",
 	value: "*",
 	minimum: 1
-};
-var expression_name = {
-	type: "enum",
-	values: {
-		"let": {
-			group: "Variable binding"
-		},
-		"var": {
-			group: "Variable binding"
-		},
-		literal: {
-			group: "Types"
-		},
-		array: {
-			group: "Types"
-		},
-		at: {
-			group: "Lookup"
-		},
-		"in": {
-			group: "Lookup"
-		},
-		"index-of": {
-			group: "Lookup"
-		},
-		slice: {
-			group: "Lookup"
-		},
-		"case": {
-			group: "Decision"
-		},
-		match: {
-			group: "Decision"
-		},
-		coalesce: {
-			group: "Decision"
-		},
-		step: {
-			group: "Ramps, scales, curves"
-		},
-		interpolate: {
-			group: "Ramps, scales, curves"
-		},
-		"interpolate-hcl": {
-			group: "Ramps, scales, curves"
-		},
-		"interpolate-lab": {
-			group: "Ramps, scales, curves"
-		},
-		ln2: {
-			group: "Math"
-		},
-		pi: {
-			group: "Math"
-		},
-		e: {
-			group: "Math"
-		},
-		"typeof": {
-			group: "Types"
-		},
-		string: {
-			group: "Types"
-		},
-		number: {
-			group: "Types"
-		},
-		boolean: {
-			group: "Types"
-		},
-		object: {
-			group: "Types"
-		},
-		collator: {
-			group: "Types"
-		},
-		format: {
-			group: "Types"
-		},
-		image: {
-			group: "Types"
-		},
-		"number-format": {
-			group: "Types"
-		},
-		"to-string": {
-			group: "Types"
-		},
-		"to-number": {
-			group: "Types"
-		},
-		"to-boolean": {
-			group: "Types"
-		},
-		"to-rgba": {
-			group: "Color"
-		},
-		"to-color": {
-			group: "Types"
-		},
-		rgb: {
-			group: "Color"
-		},
-		rgba: {
-			group: "Color"
-		},
-		get: {
-			group: "Lookup"
-		},
-		has: {
-			group: "Lookup"
-		},
-		length: {
-			group: "Lookup"
-		},
-		properties: {
-			group: "Feature data"
-		},
-		"feature-state": {
-			group: "Feature data"
-		},
-		"geometry-type": {
-			group: "Feature data"
-		},
-		id: {
-			group: "Feature data"
-		},
-		zoom: {
-			group: "Zoom"
-		},
-		"heatmap-density": {
-			group: "Heatmap"
-		},
-		"line-progress": {
-			group: "Feature data"
-		},
-		accumulated: {
-			group: "Feature data"
-		},
-		"+": {
-			group: "Math"
-		},
-		"*": {
-			group: "Math"
-		},
-		"-": {
-			group: "Math"
-		},
-		"/": {
-			group: "Math"
-		},
-		"%": {
-			group: "Math"
-		},
-		"^": {
-			group: "Math"
-		},
-		sqrt: {
-			group: "Math"
-		},
-		log10: {
-			group: "Math"
-		},
-		ln: {
-			group: "Math"
-		},
-		log2: {
-			group: "Math"
-		},
-		sin: {
-			group: "Math"
-		},
-		cos: {
-			group: "Math"
-		},
-		tan: {
-			group: "Math"
-		},
-		asin: {
-			group: "Math"
-		},
-		acos: {
-			group: "Math"
-		},
-		atan: {
-			group: "Math"
-		},
-		min: {
-			group: "Math"
-		},
-		max: {
-			group: "Math"
-		},
-		round: {
-			group: "Math"
-		},
-		abs: {
-			group: "Math"
-		},
-		ceil: {
-			group: "Math"
-		},
-		floor: {
-			group: "Math"
-		},
-		distance: {
-			group: "Math"
-		},
-		"==": {
-			group: "Decision"
-		},
-		"!=": {
-			group: "Decision"
-		},
-		">": {
-			group: "Decision"
-		},
-		"<": {
-			group: "Decision"
-		},
-		">=": {
-			group: "Decision"
-		},
-		"<=": {
-			group: "Decision"
-		},
-		all: {
-			group: "Decision"
-		},
-		any: {
-			group: "Decision"
-		},
-		"!": {
-			group: "Decision"
-		},
-		within: {
-			group: "Decision"
-		},
-		"is-supported-script": {
-			group: "String"
-		},
-		upcase: {
-			group: "String"
-		},
-		downcase: {
-			group: "String"
-		},
-		concat: {
-			group: "String"
-		},
-		"resolved-locale": {
-			group: "String"
-		}
-	}
 };
 var light = {
 	anchor: {
@@ -4548,7 +4328,6 @@ var spec = {
 },
 	function_stop: function_stop,
 	expression: expression,
-	expression_name: expression_name,
 	light: light,
 	paint: paint,
 	paint_fill: paint_fill,
@@ -12624,6 +12403,33 @@ var StructArrayLayout2i4ub8 = function (StructArray) {
 }(StructArray);
 StructArrayLayout2i4ub8.prototype.bytesPerElement = 8;
 register('StructArrayLayout2i4ub8', StructArrayLayout2i4ub8);
+var StructArrayLayout2f8 = function (StructArray) {
+    function StructArrayLayout2f8() {
+        StructArray.apply(this, arguments);
+    }
+    if (StructArray)
+        StructArrayLayout2f8.__proto__ = StructArray;
+    StructArrayLayout2f8.prototype = Object.create(StructArray && StructArray.prototype);
+    StructArrayLayout2f8.prototype.constructor = StructArrayLayout2f8;
+    StructArrayLayout2f8.prototype._refreshViews = function _refreshViews() {
+        this.uint8 = new Uint8Array(this.arrayBuffer);
+        this.float32 = new Float32Array(this.arrayBuffer);
+    };
+    StructArrayLayout2f8.prototype.emplaceBack = function emplaceBack(v0, v1) {
+        var i = this.length;
+        this.resize(i + 1);
+        return this.emplace(i, v0, v1);
+    };
+    StructArrayLayout2f8.prototype.emplace = function emplace(i, v0, v1) {
+        var o4 = i * 2;
+        this.float32[o4 + 0] = v0;
+        this.float32[o4 + 1] = v1;
+        return i;
+    };
+    return StructArrayLayout2f8;
+}(StructArray);
+StructArrayLayout2f8.prototype.bytesPerElement = 8;
+register('StructArrayLayout2f8', StructArrayLayout2f8);
 var StructArrayLayout10ui20 = function (StructArray) {
     function StructArrayLayout10ui20() {
         StructArray.apply(this, arguments);
@@ -13150,33 +12956,6 @@ var StructArrayLayout1ui2 = function (StructArray) {
 }(StructArray);
 StructArrayLayout1ui2.prototype.bytesPerElement = 2;
 register('StructArrayLayout1ui2', StructArrayLayout1ui2);
-var StructArrayLayout2f8 = function (StructArray) {
-    function StructArrayLayout2f8() {
-        StructArray.apply(this, arguments);
-    }
-    if (StructArray)
-        StructArrayLayout2f8.__proto__ = StructArray;
-    StructArrayLayout2f8.prototype = Object.create(StructArray && StructArray.prototype);
-    StructArrayLayout2f8.prototype.constructor = StructArrayLayout2f8;
-    StructArrayLayout2f8.prototype._refreshViews = function _refreshViews() {
-        this.uint8 = new Uint8Array(this.arrayBuffer);
-        this.float32 = new Float32Array(this.arrayBuffer);
-    };
-    StructArrayLayout2f8.prototype.emplaceBack = function emplaceBack(v0, v1) {
-        var i = this.length;
-        this.resize(i + 1);
-        return this.emplace(i, v0, v1);
-    };
-    StructArrayLayout2f8.prototype.emplace = function emplace(i, v0, v1) {
-        var o4 = i * 2;
-        this.float32[o4 + 0] = v0;
-        this.float32[o4 + 1] = v1;
-        return i;
-    };
-    return StructArrayLayout2f8;
-}(StructArray);
-StructArrayLayout2f8.prototype.bytesPerElement = 8;
-register('StructArrayLayout2f8', StructArrayLayout2f8);
 var StructArrayLayout4f16 = function (StructArray) {
     function StructArrayLayout4f16() {
         StructArray.apply(this, arguments);
@@ -13818,10 +13597,10 @@ FeaturePositionMap.deserialize = function deserialize(obj) {
     map.indexed = true;
     return map;
 };
-var MAX_SAFE_INTEGER = Math.pow(2, 53) - 1;
+var MAX_SAFE_INTEGER$1 = Math.pow(2, 53) - 1;
 function getNumericId(value) {
     var numValue = +value;
-    if (!isNaN(numValue) && numValue <= MAX_SAFE_INTEGER) {
+    if (!isNaN(numValue) && numValue <= MAX_SAFE_INTEGER$1) {
         return numValue;
     }
     return murmurhashJs(String(value));
@@ -14539,6 +14318,15 @@ function loadGeometry(feature) {
     return geometry;
 }
 
+function toEvaluationFeature(feature, needGeometry) {
+    return {
+        type: feature.type,
+        id: feature.id,
+        properties: feature.properties,
+        geometry: needGeometry ? loadGeometry(feature) : []
+    };
+}
+
 function addCircleVertex(layoutVertexArray, x, y, extrudeX, extrudeY) {
     layoutVertexArray.emplaceBack(x * 2 + (extrudeX + 1) / 2, y * 2 + (extrudeY + 1) / 2);
 }
@@ -14575,17 +14363,9 @@ CircleBucket.prototype.populate = function populate(features, options, canonical
         var index = ref.index;
         var sourceLayerIndex = ref.sourceLayerIndex;
         var needGeometry = this.layers[0]._featureFilter.needGeometry;
-        var evaluationFeature = {
-            type: feature.type,
-            id: id,
-            properties: feature.properties,
-            geometry: needGeometry ? loadGeometry(feature) : []
-        };
+        var evaluationFeature = toEvaluationFeature(feature, needGeometry);
         if (!this.layers[0]._featureFilter.filter(new EvaluationParameters(this.zoom), evaluationFeature, canonical)) {
             continue;
-        }
-        if (!needGeometry) {
-            evaluationFeature.geometry = loadGeometry(feature);
         }
         var sortKey = circleSortKey ? circleSortKey.evaluate(evaluationFeature, {}, canonical) : undefined;
         var bucketFeature = {
@@ -14594,7 +14374,7 @@ CircleBucket.prototype.populate = function populate(features, options, canonical
             type: feature.type,
             sourceLayerIndex: sourceLayerIndex,
             index: index,
-            geometry: evaluationFeature.geometry,
+            geometry: needGeometry ? evaluationFeature.geometry : loadGeometry(feature),
             patterns: {},
             sortKey: sortKey
         };
@@ -15663,21 +15443,40 @@ var paint$2 = new Properties({
 });
 var properties$1 = { paint: paint$2 };
 
-function renderColorRamp(expression, colorRampEvaluationParameter) {
-    var colorRampData = new Uint8Array(256 * 4);
+function renderColorRamp(params) {
     var evaluationGlobals = {};
-    for (var i = 0, j = 0; i < 256; i++, j += 4) {
-        evaluationGlobals[colorRampEvaluationParameter] = i / 255;
-        var pxColor = expression.evaluate(evaluationGlobals);
-        colorRampData[j + 0] = Math.floor(pxColor.r * 255 / pxColor.a);
-        colorRampData[j + 1] = Math.floor(pxColor.g * 255 / pxColor.a);
-        colorRampData[j + 2] = Math.floor(pxColor.b * 255 / pxColor.a);
-        colorRampData[j + 3] = Math.floor(pxColor.a * 255);
+    var width = params.resolution || 256;
+    var height = params.clips ? params.clips.length : 1;
+    var image = params.image || new RGBAImage({
+        width: width,
+        height: height
+    });
+    var renderPixel = function (stride, index, progress) {
+        evaluationGlobals[params.evaluationKey] = progress;
+        var pxColor = params.expression.evaluate(evaluationGlobals);
+        image.data[stride + index + 0] = Math.floor(pxColor.r * 255 / pxColor.a);
+        image.data[stride + index + 1] = Math.floor(pxColor.g * 255 / pxColor.a);
+        image.data[stride + index + 2] = Math.floor(pxColor.b * 255 / pxColor.a);
+        image.data[stride + index + 3] = Math.floor(pxColor.a * 255);
+    };
+    if (!params.clips) {
+        for (var i = 0, j = 0; i < width; i++, j += 4) {
+            var progress = i / (width - 1);
+            renderPixel(0, j, progress);
+        }
+    } else {
+        for (var clip = 0, stride = 0; clip < height; ++clip, stride += width * 4) {
+            for (var i$1 = 0, j$1 = 0; i$1 < width; i$1++, j$1 += 4) {
+                var progress$1 = i$1 / (width - 1);
+                var ref = params.clips[clip];
+                var start = ref.start;
+                var end = ref.end;
+                var evaluationProgress = start * (1 - progress$1) + end * progress$1;
+                renderPixel(stride, j$1, evaluationProgress);
+            }
+        }
     }
-    return new RGBAImage({
-        width: 256,
-        height: 1
-    }, colorRampData);
+    return image;
 }
 
 var HeatmapStyleLayer = function (StyleLayer) {
@@ -15699,7 +15498,11 @@ var HeatmapStyleLayer = function (StyleLayer) {
     };
     HeatmapStyleLayer.prototype._updateColorRamp = function _updateColorRamp() {
         var expression = this._transitionablePaint._values['heatmap-color'].value.expression;
-        this.colorRamp = renderColorRamp(expression, 'heatmapDensity');
+        this.colorRamp = renderColorRamp({
+            expression: expression,
+            evaluationKey: 'heatmapDensity',
+            image: this.colorRamp
+        });
         this.colorRampTexture = null;
     };
     HeatmapStyleLayer.prototype.resize = function resize() {
@@ -16430,17 +16233,9 @@ FillBucket.prototype.populate = function populate(features, options, canonical) 
         var index = ref.index;
         var sourceLayerIndex = ref.sourceLayerIndex;
         var needGeometry = this.layers[0]._featureFilter.needGeometry;
-        var evaluationFeature = {
-            type: feature.type,
-            id: id,
-            properties: feature.properties,
-            geometry: needGeometry ? loadGeometry(feature) : []
-        };
+        var evaluationFeature = toEvaluationFeature(feature, needGeometry);
         if (!this.layers[0]._featureFilter.filter(new EvaluationParameters(this.zoom), evaluationFeature, canonical)) {
             continue;
-        }
-        if (!needGeometry) {
-            evaluationFeature.geometry = loadGeometry(feature);
         }
         var sortKey = fillSortKey ? fillSortKey.evaluate(evaluationFeature, {}, canonical, options.availableImages) : undefined;
         var bucketFeature = {
@@ -16449,7 +16244,7 @@ FillBucket.prototype.populate = function populate(features, options, canonical) 
             type: feature.type,
             sourceLayerIndex: sourceLayerIndex,
             index: index,
-            geometry: evaluationFeature.geometry,
+            geometry: needGeometry ? evaluationFeature.geometry : loadGeometry(feature),
             patterns: {},
             sortKey: sortKey
         };
@@ -16924,16 +16719,11 @@ FillExtrusionBucket.prototype.populate = function populate(features, options, ca
         var index = ref.index;
         var sourceLayerIndex = ref.sourceLayerIndex;
         var needGeometry = this.layers[0]._featureFilter.needGeometry;
-        var evaluationFeature = {
-            type: feature.type,
-            id: id,
-            properties: feature.properties,
-            geometry: needGeometry ? loadGeometry(feature) : []
-        };
+        var evaluationFeature = toEvaluationFeature(feature, needGeometry);
         if (!this.layers[0]._featureFilter.filter(new EvaluationParameters(this.zoom), evaluationFeature, canonical)) {
             continue;
         }
-        var patternFeature = {
+        var bucketFeature = {
             id: id,
             sourceLayerIndex: sourceLayerIndex,
             index: index,
@@ -16942,15 +16732,12 @@ FillExtrusionBucket.prototype.populate = function populate(features, options, ca
             type: feature.type,
             patterns: {}
         };
-        if (typeof feature.id !== 'undefined') {
-            patternFeature.id = feature.id;
-        }
         if (this.hasPattern) {
-            this.features.push(addPatternDependencies('fill-extrusion', this.layers, patternFeature, this.zoom, options));
+            this.features.push(addPatternDependencies('fill-extrusion', this.layers, bucketFeature, this.zoom, options));
         } else {
-            this.addFeature(patternFeature, patternFeature.geometry, index, canonical, {});
+            this.addFeature(bucketFeature, bucketFeature.geometry, index, canonical, {});
         }
-        options.featureIndex.insert(feature, patternFeature.geometry, index, sourceLayerIndex, this.index, true);
+        options.featureIndex.insert(feature, bucketFeature.geometry, index, sourceLayerIndex, this.index, true);
     }
 };
 FillExtrusionBucket.prototype.addFeatures = function addFeatures(options, canonical, imagePositions) {
@@ -17276,6 +17063,20 @@ var lineLayoutAttributes = createLayout([
 ], 4);
 var members$3 = lineLayoutAttributes.members;
 
+var lineLayoutAttributesExt = createLayout([
+    {
+        name: 'a_uv_x',
+        components: 1,
+        type: 'Float32'
+    },
+    {
+        name: 'a_split_index',
+        components: 1,
+        type: 'Float32'
+    }
+]);
+var members$4 = lineLayoutAttributesExt.members;
+
 var vectorTileFeatureTypes$1 = vectorTile.VectorTileFeature.types;
 var EXTRUDE_SCALE = 63;
 var COS_HALF_SHARP_CORNER = Math.cos(75 / 2 * (Math.PI / 180));
@@ -17285,6 +17086,7 @@ var LINE_DISTANCE_BUFFER_BITS = 15;
 var LINE_DISTANCE_SCALE = 1 / 2;
 var MAX_LINE_DISTANCE = Math.pow(2, LINE_DISTANCE_BUFFER_BITS - 1) / LINE_DISTANCE_SCALE;
 var LineBucket = function LineBucket(options) {
+    var this$1 = this;
     this.zoom = options.zoom;
     this.overscaling = options.overscaling;
     this.layers = options.layers;
@@ -17294,10 +17096,17 @@ var LineBucket = function LineBucket(options) {
     this.index = options.index;
     this.hasPattern = false;
     this.patternFeatures = [];
+    this.lineClipsArray = [];
+    this.gradients = {};
+    this.layers.forEach(function (layer) {
+        this$1.gradients[layer.id] = {};
+    });
     this.layoutVertexArray = new StructArrayLayout2i4ub8();
+    this.layoutVertexArray2 = new StructArrayLayout2f8();
     this.indexArray = new StructArrayLayout3ui6();
     this.programConfigurations = new ProgramConfigurationSet(options.layers, options.zoom);
     this.segments = new SegmentVector();
+    this.maxLineLength = 0;
     this.stateDependentLayerIds = this.layers.filter(function (l) {
         return l.isStateDependent();
     }).map(function (l) {
@@ -17315,17 +17124,9 @@ LineBucket.prototype.populate = function populate(features, options, canonical) 
         var index = ref.index;
         var sourceLayerIndex = ref.sourceLayerIndex;
         var needGeometry = this.layers[0]._featureFilter.needGeometry;
-        var evaluationFeature = {
-            type: feature.type,
-            id: id,
-            properties: feature.properties,
-            geometry: needGeometry ? loadGeometry(feature) : []
-        };
+        var evaluationFeature = toEvaluationFeature(feature, needGeometry);
         if (!this.layers[0]._featureFilter.filter(new EvaluationParameters(this.zoom), evaluationFeature, canonical)) {
             continue;
-        }
-        if (!needGeometry) {
-            evaluationFeature.geometry = loadGeometry(feature);
         }
         var sortKey = lineSortKey ? lineSortKey.evaluate(evaluationFeature, {}, canonical) : undefined;
         var bucketFeature = {
@@ -17334,7 +17135,7 @@ LineBucket.prototype.populate = function populate(features, options, canonical) 
             type: feature.type,
             sourceLayerIndex: sourceLayerIndex,
             index: index,
-            geometry: evaluationFeature.geometry,
+            geometry: needGeometry ? evaluationFeature.geometry : loadGeometry(feature),
             patterns: {},
             sortKey: sortKey
         };
@@ -17381,6 +17182,9 @@ LineBucket.prototype.uploadPending = function uploadPending() {
 };
 LineBucket.prototype.upload = function upload(context) {
     if (!this.uploaded) {
+        if (this.layoutVertexArray2.length !== 0) {
+            this.layoutVertexBuffer2 = context.createVertexBuffer(this.layoutVertexArray2, members$4);
+        }
         this.layoutVertexBuffer = context.createVertexBuffer(this.layoutVertexArray, members$3);
         this.indexBuffer = context.createIndexBuffer(this.indexArray);
     }
@@ -17396,12 +17200,23 @@ LineBucket.prototype.destroy = function destroy() {
     this.programConfigurations.destroy();
     this.segments.destroy();
 };
+LineBucket.prototype.lineFeatureClips = function lineFeatureClips(feature) {
+    if (!!feature.properties && feature.properties.hasOwnProperty('mapbox_clip_start') && feature.properties.hasOwnProperty('mapbox_clip_end')) {
+        var start = +feature.properties['mapbox_clip_start'];
+        var end = +feature.properties['mapbox_clip_end'];
+        return {
+            start: start,
+            end: end
+        };
+    }
+};
 LineBucket.prototype.addFeature = function addFeature(feature, geometry, index, canonical, imagePositions) {
     var layout = this.layers[0].layout;
     var join = layout.get('line-join').evaluate(feature, {});
     var cap = layout.get('line-cap');
     var miterLimit = layout.get('line-miter-limit');
     var roundLimit = layout.get('line-round-limit');
+    this.lineClips = this.lineFeatureClips(feature);
     for (var i = 0, list = geometry; i < list.length; i += 1) {
         var line = list[i];
         this.addLine(line, feature, join, cap, miterLimit, roundLimit);
@@ -17412,13 +17227,13 @@ LineBucket.prototype.addLine = function addLine(vertices, feature, join, cap, mi
     this.distance = 0;
     this.scaledDistance = 0;
     this.totalDistance = 0;
-    if (!!feature.properties && feature.properties.hasOwnProperty('mapbox_clip_start') && feature.properties.hasOwnProperty('mapbox_clip_end')) {
-        this.clipStart = +feature.properties['mapbox_clip_start'];
-        this.clipEnd = +feature.properties['mapbox_clip_end'];
+    if (this.lineClips) {
+        this.lineClipsArray.push(this.lineClips);
         for (var i = 0; i < vertices.length - 1; i++) {
             this.totalDistance += vertices[i].dist(vertices[i + 1]);
         }
         this.updateScaledDistance();
+        this.maxLineLength = Math.max(this.maxLineLength, this.totalDistance);
     }
     var isPolygon = vectorTileFeatureTypes$1[feature.type] === 'Polygon';
     var len = vertices.length;
@@ -17582,8 +17397,15 @@ LineBucket.prototype.addCurrentVertex = function addCurrentVertex(p, normal, end
 LineBucket.prototype.addHalfVertex = function addHalfVertex(ref, extrudeX, extrudeY, round, up, dir, segment) {
     var x = ref.x;
     var y = ref.y;
-    var linesofar = this.scaledDistance * LINE_DISTANCE_SCALE;
-    this.layoutVertexArray.emplaceBack((x << 1) + (round ? 1 : 0), (y << 1) + (up ? 1 : 0), Math.round(EXTRUDE_SCALE * extrudeX) + 128, Math.round(EXTRUDE_SCALE * extrudeY) + 128, (dir === 0 ? 0 : dir < 0 ? -1 : 1) + 1 | (linesofar & 63) << 2, linesofar >> 6);
+    var totalDistance = this.lineClips ? this.scaledDistance * (MAX_LINE_DISTANCE - 1) : this.scaledDistance;
+    var linesofarScaled = totalDistance * LINE_DISTANCE_SCALE;
+    this.layoutVertexArray.emplaceBack((x << 1) + (round ? 1 : 0), (y << 1) + (up ? 1 : 0), Math.round(EXTRUDE_SCALE * extrudeX) + 128, Math.round(EXTRUDE_SCALE * extrudeY) + 128, (dir === 0 ? 0 : dir < 0 ? -1 : 1) + 1 | (linesofarScaled & 63) << 2, linesofarScaled >> 6);
+    if (this.lineClips) {
+        var progressRealigned = this.scaledDistance - this.lineClips.start;
+        var endClipRealigned = this.lineClips.end - this.lineClips.start;
+        var uvX = progressRealigned / endClipRealigned;
+        this.layoutVertexArray2.emplaceBack(uvX, this.lineClipsArray.length);
+    }
     var e = segment.vertexLength++;
     if (this.e1 >= 0 && this.e2 >= 0) {
         this.indexArray.emplaceBack(this.e1, this.e2, e);
@@ -17596,7 +17418,7 @@ LineBucket.prototype.addHalfVertex = function addHalfVertex(ref, extrudeX, extru
     }
 };
 LineBucket.prototype.updateScaledDistance = function updateScaledDistance() {
-    this.scaledDistance = this.totalDistance > 0 ? (this.clipStart + (this.clipEnd - this.clipStart) * this.distance / this.totalDistance) * (MAX_LINE_DISTANCE - 1) : this.distance;
+    this.scaledDistance = this.lineClips ? this.lineClips.start + (this.lineClips.end - this.lineClips.start) * this.distance / this.totalDistance : this.distance;
 };
 LineBucket.prototype.updateDistance = function updateDistance(prev, next) {
     this.distance += prev.dist(next);
@@ -17662,6 +17484,7 @@ lineFloorwidthProperty.useIntegerZoom = true;
 var LineStyleLayer = function (StyleLayer) {
     function LineStyleLayer(layer) {
         StyleLayer.call(this, layer, properties$5);
+        this.gradientVersion = 0;
     }
     if (StyleLayer)
         LineStyleLayer.__proto__ = StyleLayer;
@@ -17669,13 +17492,13 @@ var LineStyleLayer = function (StyleLayer) {
     LineStyleLayer.prototype.constructor = LineStyleLayer;
     LineStyleLayer.prototype._handleSpecialPaintPropertyUpdate = function _handleSpecialPaintPropertyUpdate(name) {
         if (name === 'line-gradient') {
-            this._updateGradient();
+            var expression = this._transitionablePaint._values['line-gradient'].value.expression;
+            this.stepInterpolant = expression._styleExpression.expression instanceof Step;
+            this.gradientVersion = (this.gradientVersion + 1) % MAX_SAFE_INTEGER;
         }
     };
-    LineStyleLayer.prototype._updateGradient = function _updateGradient() {
-        var expression = this._transitionablePaint._values['line-gradient'].value.expression;
-        this.gradient = renderColorRamp(expression, 'lineProgress');
-        this.gradientTexture = null;
+    LineStyleLayer.prototype.gradientExpression = function gradientExpression() {
+        return this._transitionablePaint._values['line-gradient'].value.expression;
     };
     LineStyleLayer.prototype.recalculate = function recalculate(parameters, availableImages) {
         StyleLayer.prototype.recalculate.call(this, parameters, availableImages);
@@ -21254,9 +21077,10 @@ var SymbolBucket = function SymbolBucket(options) {
     var layout = this.layers[0].layout;
     var sortKey = layout.get('symbol-sort-key');
     var zOrder = layout.get('symbol-z-order');
+    this.canOverlap = layout.get('text-allow-overlap') || layout.get('icon-allow-overlap') || layout.get('text-ignore-placement') || layout.get('icon-ignore-placement');
     this.sortFeaturesByKey = zOrder !== 'viewport-y' && sortKey.constantOr(1) !== undefined;
     var zOrderByViewportY = zOrder === 'viewport-y' || zOrder === 'auto' && !this.sortFeaturesByKey;
-    this.sortFeaturesByY = zOrderByViewportY && (layout.get('text-allow-overlap') || layout.get('icon-allow-overlap') || layout.get('text-ignore-placement') || layout.get('icon-ignore-placement'));
+    this.sortFeaturesByY = zOrderByViewportY && this.canOverlap;
     if (layout.get('symbol-placement') === 'point') {
         this.writingModes = layout.get('text-writing-mode').map(function (wm) {
             return WritingMode[wm];
@@ -21315,12 +21139,7 @@ SymbolBucket.prototype.populate = function populate(features, options, canonical
         var index = ref.index;
         var sourceLayerIndex = ref.sourceLayerIndex;
         var needGeometry = layer._featureFilter.needGeometry;
-        var evaluationFeature = {
-            type: feature.type,
-            id: id,
-            properties: feature.properties,
-            geometry: needGeometry ? loadGeometry(feature) : []
-        };
+        var evaluationFeature = toEvaluationFeature(feature, needGeometry);
         if (!layer._featureFilter.filter(globalProperties, evaluationFeature, canonical)) {
             continue;
         }
@@ -21357,7 +21176,7 @@ SymbolBucket.prototype.populate = function populate(features, options, canonical
             icon: icon,
             index: index,
             sourceLayerIndex: sourceLayerIndex,
-            geometry: loadGeometry(feature),
+            geometry: evaluationFeature.geometry,
             properties: feature.properties,
             type: vectorTileFeatureTypes$2[feature.type],
             sortKey: sortKey
@@ -21464,7 +21283,7 @@ SymbolBucket.prototype.addToLineVertexArray = function addToLineVertexArray(anch
 SymbolBucket.prototype.addSymbols = function addSymbols(arrays, quads, sizeVertex, lineOffset, alongLine, feature, writingMode, labelAnchor, lineStartIndex, lineLength, associatedIconIndex, canonical) {
     var indexArray = arrays.indexArray;
     var layoutVertexArray = arrays.layoutVertexArray;
-    var segment = arrays.segments.prepareSegment(4 * quads.length, layoutVertexArray, indexArray, feature.sortKey);
+    var segment = arrays.segments.prepareSegment(4 * quads.length, layoutVertexArray, indexArray, this.canOverlap ? feature.sortKey : undefined);
     var glyphOffsetArrayStart = this.glyphOffsetArray.length;
     var vertexStartIndex = segment.vertexLength;
     var angle = this.allowVerticalPlacement && writingMode === WritingMode.vertical ? Math.PI / 2 : 0;
@@ -23088,7 +22907,12 @@ FeatureIndex.prototype.loadMatchingFeature = function loadMatchingFeature(result
     var sourceLayerName = this.sourceLayerCoder.decode(sourceLayerIndex);
     var sourceLayer = this.vtLayers[sourceLayerName];
     var feature = sourceLayer.feature(featureIndex);
-    if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), feature)) {
+    if (filter.needGeometry) {
+        var evaluationFeature = toEvaluationFeature(feature, true);
+        if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), evaluationFeature, this.tileID.canonical)) {
+            return;
+        }
+    } else if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), feature)) {
         return;
     }
     var id = this.getId(feature, sourceLayerName);
@@ -23105,7 +22929,7 @@ FeatureIndex.prototype.loadMatchingFeature = function loadMatchingFeature(result
         if (id !== undefined && sourceFeatureState) {
             featureState = sourceFeatureState.getState(styleLayer.sourceLayer || '_geojsonTileLayer', id);
         }
-        var serializedLayer = serializedLayers[layerID];
+        var serializedLayer = extend({}, serializedLayers[layerID]);
         serializedLayer.paint = evaluateProperties(serializedLayer.paint, styleLayer.paint, feature, featureState, availableImages);
         serializedLayer.layout = evaluateProperties(serializedLayer.layout, styleLayer.layout, feature, featureState, availableImages);
         var intersectionZ = !intersectionTest || intersectionTest(feature, styleLayer, featureState);
@@ -23358,12 +23182,18 @@ Tile.prototype.querySourceFeatures = function querySourceFeatures(result, params
     };
     for (var i = 0; i < layer.length; i++) {
         var feature = layer.feature(i);
-        if (filter.filter(new EvaluationParameters(this.tileID.overscaledZ), feature)) {
-            var id = featureIndex.getId(feature, sourceLayer);
-            var geojsonFeature = new Feature(feature, z, x, y, id);
-            geojsonFeature.tile = coord;
-            result.push(geojsonFeature);
+        if (filter.needGeometry) {
+            var evaluationFeature = toEvaluationFeature(feature, true);
+            if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), evaluationFeature, this.tileID.canonical)) {
+                continue;
+            }
+        } else if (!filter.filter(new EvaluationParameters(this.tileID.overscaledZ), feature)) {
+            continue;
         }
+        var id = featureIndex.getId(feature, sourceLayer);
+        var geojsonFeature = new Feature(feature, z, x, y, id);
+        geojsonFeature.tile = coord;
+        result.push(geojsonFeature);
     }
 };
 Tile.prototype.hasData = function hasData() {
@@ -23626,6 +23456,7 @@ exports.mercatorZfromAltitude = mercatorZfromAltitude;
 exports.mul = mul;
 exports.multiply = multiply;
 exports.mvt = vectorTile;
+exports.nextPowerOfTwo = nextPowerOfTwo;
 exports.normalize = normalize;
 exports.number = number;
 exports.offscreenCanvasSupported = offscreenCanvasSupported;
@@ -23643,6 +23474,7 @@ exports.potpack = potpack;
 exports.refProperties = refProperties;
 exports.register = register;
 exports.registerForPluginStateChange = registerForPluginStateChange;
+exports.renderColorRamp = renderColorRamp;
 exports.rotate = rotate;
 exports.rotateX = rotateX;
 exports.rotateZ = rotateZ;
@@ -24182,11 +24014,14 @@ function rewindRings(rings, outer) {
     }
 }
 function rewindRing(ring, dir) {
-    var area = 0;
+    var area = 0, err = 0;
     for (var i = 0, len = ring.length, j = len - 1; i < len; j = i++) {
-        area += (ring[i][0] - ring[j][0]) * (ring[j][1] + ring[i][1]);
+        var k = (ring[i][0] - ring[j][0]) * (ring[j][1] + ring[i][1]);
+        var m = area + k;
+        err += Math.abs(area) >= Math.abs(k) ? area - m + k : k - m + area;
+        area = m;
     }
-    if (area >= 0 !== !!dir) {
+    if (area + err >= 0 !== !!dir) {
         ring.reverse();
     }
 }
@@ -25807,6 +25642,26 @@ var GeoJSONWorkerSource = function (VectorTileWorkerSource) {
             } else {
                 geojsonRewind(data, true);
                 try {
+                    if (params.filter) {
+                        var compiled = performance.createExpression(params.filter, {
+                            type: 'boolean',
+                            'property-type': 'data-driven',
+                            overridable: false,
+                            transition: false
+                        });
+                        if (compiled.result === 'error') {
+                            throw new Error(compiled.value.map(function (err) {
+                                return err.key + ': ' + err.message;
+                            }).join(', '));
+                        }
+                        var features = data.features.filter(function (feature) {
+                            return compiled.value.evaluate({ zoom: 0 }, feature);
+                        });
+                        data = {
+                            type: 'FeatureCollection',
+                            features: features
+                        };
+                    }
                     this$1._geoJSONIndex = params.cluster ? new Supercluster(getSuperclusterOptions(params)).load(data.features) : geojsonvt(data, params.geojsonVtOptions);
                 } catch (err) {
                     return callback(err);
@@ -27379,6 +27234,30 @@ var VectorTileSource = function (Evented) {
         this.map = map;
         this.load();
     };
+    VectorTileSource.prototype.setSourceProperty = function setSourceProperty(callback) {
+        if (this._tileJSONRequest) {
+            this._tileJSONRequest.cancel();
+        }
+        callback();
+        var sourceCache = this.map.style.sourceCaches[this.id];
+        sourceCache.clearTiles();
+        this.load();
+    };
+    VectorTileSource.prototype.setTiles = function setTiles(tiles) {
+        var this$1 = this;
+        this.setSourceProperty(function () {
+            this$1._options.tiles = tiles;
+        });
+        return this;
+    };
+    VectorTileSource.prototype.setUrl = function setUrl(url) {
+        var this$1 = this;
+        this.setSourceProperty(function () {
+            this$1.url = url;
+            this$1._options.url = url;
+        });
+        return this;
+    };
     VectorTileSource.prototype.onRemove = function onRemove() {
         if (this._tileJSONRequest) {
             this._tileJSONRequest.cancel();
@@ -27748,7 +27627,8 @@ var GeoJSONSource = function (Evented) {
                 log: false,
                 generateId: options.generateId || false
             },
-            clusterProperties: options.clusterProperties
+            clusterProperties: options.clusterProperties,
+            filter: options.filter
         }, options.workerOptions);
     }
     if (Evented)
@@ -28108,6 +27988,7 @@ var VideoSource = function (ImageSource) {
             } else if (video) {
                 this$1.video = video;
                 this$1.video.loop = true;
+                this$1.video.setAttribute('playsinline', '');
                 this$1.video.addEventListener('playing', function () {
                     this$1.map.triggerRepaint();
                 });
@@ -29638,6 +29519,7 @@ var Context = function Context(gl) {
         this.extRenderToTextureHalfFloat = gl.getExtension('EXT_color_buffer_half_float');
     }
     this.extTimerQuery = gl.getExtension('EXT_disjoint_timer_query');
+    this.maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
 };
 Context.prototype.setDefault = function setDefault() {
     this.unbindVAO();
@@ -33054,8 +32936,11 @@ var Style = function (Evented) {
             this.light.updateTransitions(parameters);
             this._resetUpdates();
         }
+        var sourcesUsedBefore = {};
         for (var sourceId in this.sourceCaches) {
-            this.sourceCaches[sourceId].used = false;
+            var sourceCache = this.sourceCaches[sourceId];
+            sourcesUsedBefore[sourceId] = sourceCache.used;
+            sourceCache.used = false;
         }
         for (var i = 0, list = this._order; i < list.length; i += 1) {
             var layerId = list[i];
@@ -33063,6 +32948,16 @@ var Style = function (Evented) {
             layer.recalculate(parameters, this._availableImages);
             if (!layer.isHidden(parameters.zoom) && layer.source) {
                 this.sourceCaches[layer.source].used = true;
+            }
+        }
+        for (var sourceId$1 in sourcesUsedBefore) {
+            var sourceCache$1 = this.sourceCaches[sourceId$1];
+            if (sourcesUsedBefore[sourceId$1] !== sourceCache$1.used) {
+                sourceCache$1.fire(new performance.Event('data', {
+                    sourceDataType: 'visibility',
+                    dataType: 'source',
+                    sourceId: sourceId$1
+                }));
             }
         }
         this.light.recalculate(parameters);
@@ -33133,10 +33028,7 @@ var Style = function (Evented) {
             return this.fire(new performance.ErrorEvent(new Error('An image with this name already exists.')));
         }
         this.imageManager.addImage(id, image);
-        this._availableImages = this.imageManager.listImages();
-        this._changedImages[id] = true;
-        this._changed = true;
-        this.fire(new performance.Event('data', { dataType: 'style' }));
+        this._afterImageUpdated(id);
     };
     Style.prototype.updateImage = function updateImage(id, image) {
         this.imageManager.updateImage(id, image);
@@ -33149,9 +33041,13 @@ var Style = function (Evented) {
             return this.fire(new performance.ErrorEvent(new Error('No image with this name exists.')));
         }
         this.imageManager.removeImage(id);
+        this._afterImageUpdated(id);
+    };
+    Style.prototype._afterImageUpdated = function _afterImageUpdated(id) {
         this._availableImages = this.imageManager.listImages();
         this._changedImages[id] = true;
         this._changed = true;
+        this.dispatcher.broadcast('setImages', this._availableImages);
         this.fire(new performance.Event('data', { dataType: 'style' }));
     };
     Style.prototype.listImages = function listImages() {
@@ -33167,7 +33063,7 @@ var Style = function (Evented) {
             throw new Error('There is already a source with this ID');
         }
         if (!source.type) {
-            throw new Error('The type property must be defined, but the only the following properties were given: ' + Object.keys(source).join(', ') + '.');
+            throw new Error('The type property must be defined, but only the following properties were given: ' + Object.keys(source).join(', ') + '.');
         }
         var builtIns = [
             'vector',
@@ -33456,7 +33352,7 @@ var Style = function (Evented) {
             return;
         }
         if (key && (typeof target.id !== 'string' && typeof target.id !== 'number')) {
-            this.fire(new performance.ErrorEvent(new Error('A feature id is requred to remove its specific state property.')));
+            this.fire(new performance.ErrorEvent(new Error('A feature id is required to remove its specific state property.')));
             return;
         }
         sourceCache.removeFeatureState(sourceLayer, target.id, key);
@@ -33850,7 +33746,7 @@ var fillExtrusionPatternFrag = "uniform vec2 u_texsize;uniform float u_fade;unif
 
 var fillExtrusionPatternVert = "uniform mat4 u_matrix;uniform vec2 u_pixel_coord_upper;uniform vec2 u_pixel_coord_lower;uniform float u_height_factor;uniform vec3 u_scale;uniform float u_vertical_gradient;uniform lowp float u_opacity;uniform vec3 u_lightcolor;uniform lowp vec3 u_lightpos;uniform lowp float u_lightintensity;attribute vec2 a_pos;attribute vec4 a_normal_ed;varying vec2 v_pos_a;varying vec2 v_pos_b;varying vec4 v_lighting;\n#pragma mapbox: define lowp float base\n#pragma mapbox: define lowp float height\n#pragma mapbox: define lowp vec4 pattern_from\n#pragma mapbox: define lowp vec4 pattern_to\n#pragma mapbox: define lowp float pixel_ratio_from\n#pragma mapbox: define lowp float pixel_ratio_to\nvoid main() {\n#pragma mapbox: initialize lowp float base\n#pragma mapbox: initialize lowp float height\n#pragma mapbox: initialize mediump vec4 pattern_from\n#pragma mapbox: initialize mediump vec4 pattern_to\n#pragma mapbox: initialize lowp float pixel_ratio_from\n#pragma mapbox: initialize lowp float pixel_ratio_to\nvec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec3 normal=a_normal_ed.xyz;float edgedistance=a_normal_ed.w;vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;base=max(0.0,base);height=max(0.0,height);float t=mod(normal.x,2.0);float z=t > 0.0 ? height : base;gl_Position=u_matrix*vec4(a_pos,z,1);vec2 pos=normal.x==1.0 && normal.y==0.0 && normal.z==16384.0\n? a_pos\n: vec2(edgedistance,z*u_height_factor);v_pos_a=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,fromScale*display_size_a,tileRatio,pos);v_pos_b=get_pattern_pos(u_pixel_coord_upper,u_pixel_coord_lower,toScale*display_size_b,tileRatio,pos);v_lighting=vec4(0.0,0.0,0.0,1.0);float directional=clamp(dot(normal/16383.0,u_lightpos),0.0,1.0);directional=mix((1.0-u_lightintensity),max((0.5+u_lightintensity),1.0),directional);if (normal.y !=0.0) {directional*=((1.0-u_vertical_gradient)+(u_vertical_gradient*clamp((t+base)*pow(height/150.0,0.5),mix(0.7,0.98,1.0-u_lightintensity),1.0)));}v_lighting.rgb+=clamp(directional*u_lightcolor,mix(vec3(0.0),vec3(0.3),1.0-u_lightcolor),vec3(1.0));v_lighting*=u_opacity;}";
 
-var hillshadePrepareFrag = "#ifdef GL_ES\nprecision highp float;\n#endif\nuniform sampler2D u_image;varying vec2 v_pos;uniform vec2 u_dimension;uniform float u_zoom;uniform float u_maxzoom;uniform vec4 u_unpack;float getElevation(vec2 coord,float bias) {vec4 data=texture2D(u_image,coord)*255.0;data.a=-1.0;return dot(data,u_unpack)/4.0;}void main() {vec2 epsilon=1.0/u_dimension;float a=getElevation(v_pos+vec2(-epsilon.x,-epsilon.y),0.0);float b=getElevation(v_pos+vec2(0,-epsilon.y),0.0);float c=getElevation(v_pos+vec2(epsilon.x,-epsilon.y),0.0);float d=getElevation(v_pos+vec2(-epsilon.x,0),0.0);float e=getElevation(v_pos,0.0);float f=getElevation(v_pos+vec2(epsilon.x,0),0.0);float g=getElevation(v_pos+vec2(-epsilon.x,epsilon.y),0.0);float h=getElevation(v_pos+vec2(0,epsilon.y),0.0);float i=getElevation(v_pos+vec2(epsilon.x,epsilon.y),0.0);float exaggeration=u_zoom < 2.0 ? 0.4 : u_zoom < 4.5 ? 0.35 : 0.3;vec2 deriv=vec2((c+f+f+i)-(a+d+d+g),(g+h+h+i)-(a+b+b+c))/ pow(2.0,(u_zoom-u_maxzoom)*exaggeration+19.2562-u_zoom);gl_FragColor=clamp(vec4(deriv.x/2.0+0.5,deriv.y/2.0+0.5,1.0,1.0),0.0,1.0);\n#ifdef OVERDRAW_INSPECTOR\ngl_FragColor=vec4(1.0);\n#endif\n}";
+var hillshadePrepareFrag = "#ifdef GL_ES\nprecision highp float;\n#endif\nuniform sampler2D u_image;varying vec2 v_pos;uniform vec2 u_dimension;uniform float u_zoom;uniform vec4 u_unpack;float getElevation(vec2 coord,float bias) {vec4 data=texture2D(u_image,coord)*255.0;data.a=-1.0;return dot(data,u_unpack)/4.0;}void main() {vec2 epsilon=1.0/u_dimension;float a=getElevation(v_pos+vec2(-epsilon.x,-epsilon.y),0.0);float b=getElevation(v_pos+vec2(0,-epsilon.y),0.0);float c=getElevation(v_pos+vec2(epsilon.x,-epsilon.y),0.0);float d=getElevation(v_pos+vec2(-epsilon.x,0),0.0);float e=getElevation(v_pos,0.0);float f=getElevation(v_pos+vec2(epsilon.x,0),0.0);float g=getElevation(v_pos+vec2(-epsilon.x,epsilon.y),0.0);float h=getElevation(v_pos+vec2(0,epsilon.y),0.0);float i=getElevation(v_pos+vec2(epsilon.x,epsilon.y),0.0);float exaggerationFactor=u_zoom < 2.0 ? 0.4 : u_zoom < 4.5 ? 0.35 : 0.3;float exaggeration=u_zoom < 15.0 ? (u_zoom-15.0)*exaggerationFactor : 0.0;vec2 deriv=vec2((c+f+f+i)-(a+d+d+g),(g+h+h+i)-(a+b+b+c))/pow(2.0,exaggeration+(19.2562-u_zoom));gl_FragColor=clamp(vec4(deriv.x/2.0+0.5,deriv.y/2.0+0.5,1.0,1.0),0.0,1.0);\n#ifdef OVERDRAW_INSPECTOR\ngl_FragColor=vec4(1.0);\n#endif\n}";
 
 var hillshadePrepareVert = "uniform mat4 u_matrix;uniform vec2 u_dimension;attribute vec2 a_pos;attribute vec2 a_texture_pos;varying vec2 v_pos;void main() {gl_Position=u_matrix*vec4(a_pos,0,1);highp vec2 epsilon=1.0/u_dimension;float scale=(u_dimension.x-2.0)/u_dimension.x;v_pos=(a_texture_pos/8192.0)*scale+epsilon;}";
 
@@ -33862,9 +33758,9 @@ var lineFrag = "uniform lowp float u_device_pixel_ratio;varying vec2 v_width2;va
 
 var lineVert = "\n#define scale 0.015873016\nattribute vec2 a_pos_normal;attribute vec4 a_data;uniform mat4 u_matrix;uniform mediump float u_ratio;uniform vec2 u_units_to_pixels;uniform lowp float u_device_pixel_ratio;varying vec2 v_normal;varying vec2 v_width2;varying float v_gamma_scale;varying highp float v_linesofar;\n#pragma mapbox: define highp vec4 color\n#pragma mapbox: define lowp float blur\n#pragma mapbox: define lowp float opacity\n#pragma mapbox: define mediump float gapwidth\n#pragma mapbox: define lowp float offset\n#pragma mapbox: define mediump float width\nvoid main() {\n#pragma mapbox: initialize highp vec4 color\n#pragma mapbox: initialize lowp float blur\n#pragma mapbox: initialize lowp float opacity\n#pragma mapbox: initialize mediump float gapwidth\n#pragma mapbox: initialize lowp float offset\n#pragma mapbox: initialize mediump float width\nfloat ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=a_data.xy-128.0;float a_direction=mod(a_data.z,4.0)-1.0;v_linesofar=(floor(a_data.z/4.0)+a_data.w*64.0)*2.0;vec2 pos=floor(a_pos_normal*0.5);mediump vec2 normal=a_pos_normal-2.0*pos;normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump float u=0.5*a_direction;mediump float t=1.0-abs(u);mediump vec2 offset2=offset*a_extrude*scale*normal.y*mat2(t,-u,u,t);vec4 projected_extrude=u_matrix*vec4(dist/u_ratio,0.0,0.0);gl_Position=u_matrix*vec4(pos+offset2/u_ratio,0.0,1.0)+projected_extrude;float extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length(projected_extrude.xy/gl_Position.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;v_width2=vec2(outset,inset);}";
 
-var lineGradientFrag = "uniform lowp float u_device_pixel_ratio;uniform sampler2D u_image;varying vec2 v_width2;varying vec2 v_normal;varying float v_gamma_scale;varying highp float v_lineprogress;\n#pragma mapbox: define lowp float blur\n#pragma mapbox: define lowp float opacity\nvoid main() {\n#pragma mapbox: initialize lowp float blur\n#pragma mapbox: initialize lowp float opacity\nfloat dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);vec4 color=texture2D(u_image,vec2(v_lineprogress,0.5));gl_FragColor=color*(alpha*opacity);\n#ifdef OVERDRAW_INSPECTOR\ngl_FragColor=vec4(1.0);\n#endif\n}";
+var lineGradientFrag = "uniform lowp float u_device_pixel_ratio;uniform sampler2D u_image;varying vec2 v_width2;varying vec2 v_normal;varying float v_gamma_scale;varying highp vec2 v_uv;\n#pragma mapbox: define lowp float blur\n#pragma mapbox: define lowp float opacity\nvoid main() {\n#pragma mapbox: initialize lowp float blur\n#pragma mapbox: initialize lowp float opacity\nfloat dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);vec4 color=texture2D(u_image,v_uv);gl_FragColor=color*(alpha*opacity);\n#ifdef OVERDRAW_INSPECTOR\ngl_FragColor=vec4(1.0);\n#endif\n}";
 
-var lineGradientVert = "\n#define MAX_LINE_DISTANCE 32767.0\n#define scale 0.015873016\nattribute vec2 a_pos_normal;attribute vec4 a_data;uniform mat4 u_matrix;uniform mediump float u_ratio;uniform lowp float u_device_pixel_ratio;uniform vec2 u_units_to_pixels;varying vec2 v_normal;varying vec2 v_width2;varying float v_gamma_scale;varying highp float v_lineprogress;\n#pragma mapbox: define lowp float blur\n#pragma mapbox: define lowp float opacity\n#pragma mapbox: define mediump float gapwidth\n#pragma mapbox: define lowp float offset\n#pragma mapbox: define mediump float width\nvoid main() {\n#pragma mapbox: initialize lowp float blur\n#pragma mapbox: initialize lowp float opacity\n#pragma mapbox: initialize mediump float gapwidth\n#pragma mapbox: initialize lowp float offset\n#pragma mapbox: initialize mediump float width\nfloat ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=a_data.xy-128.0;float a_direction=mod(a_data.z,4.0)-1.0;v_lineprogress=(floor(a_data.z/4.0)+a_data.w*64.0)*2.0/MAX_LINE_DISTANCE;vec2 pos=floor(a_pos_normal*0.5);mediump vec2 normal=a_pos_normal-2.0*pos;normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump float u=0.5*a_direction;mediump float t=1.0-abs(u);mediump vec2 offset2=offset*a_extrude*scale*normal.y*mat2(t,-u,u,t);vec4 projected_extrude=u_matrix*vec4(dist/u_ratio,0.0,0.0);gl_Position=u_matrix*vec4(pos+offset2/u_ratio,0.0,1.0)+projected_extrude;float extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length(projected_extrude.xy/gl_Position.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;v_width2=vec2(outset,inset);}";
+var lineGradientVert = "\n#define scale 0.015873016\nattribute vec2 a_pos_normal;attribute vec4 a_data;attribute float a_uv_x;attribute float a_split_index;uniform mat4 u_matrix;uniform mediump float u_ratio;uniform lowp float u_device_pixel_ratio;uniform vec2 u_units_to_pixels;uniform float u_image_height;varying vec2 v_normal;varying vec2 v_width2;varying float v_gamma_scale;varying highp vec2 v_uv;\n#pragma mapbox: define lowp float blur\n#pragma mapbox: define lowp float opacity\n#pragma mapbox: define mediump float gapwidth\n#pragma mapbox: define lowp float offset\n#pragma mapbox: define mediump float width\nvoid main() {\n#pragma mapbox: initialize lowp float blur\n#pragma mapbox: initialize lowp float opacity\n#pragma mapbox: initialize mediump float gapwidth\n#pragma mapbox: initialize lowp float offset\n#pragma mapbox: initialize mediump float width\nfloat ANTIALIASING=1.0/u_device_pixel_ratio/2.0;vec2 a_extrude=a_data.xy-128.0;float a_direction=mod(a_data.z,4.0)-1.0;highp float texel_height=1.0/u_image_height;highp float half_texel_height=0.5*texel_height;v_uv=vec2(a_uv_x,a_split_index*texel_height-half_texel_height);vec2 pos=floor(a_pos_normal*0.5);mediump vec2 normal=a_pos_normal-2.0*pos;normal.y=normal.y*2.0-1.0;v_normal=normal;gapwidth=gapwidth/2.0;float halfwidth=width/2.0;offset=-1.0*offset;float inset=gapwidth+(gapwidth > 0.0 ? ANTIALIASING : 0.0);float outset=gapwidth+halfwidth*(gapwidth > 0.0 ? 2.0 : 1.0)+(halfwidth==0.0 ? 0.0 : ANTIALIASING);mediump vec2 dist=outset*a_extrude*scale;mediump float u=0.5*a_direction;mediump float t=1.0-abs(u);mediump vec2 offset2=offset*a_extrude*scale*normal.y*mat2(t,-u,u,t);vec4 projected_extrude=u_matrix*vec4(dist/u_ratio,0.0,0.0);gl_Position=u_matrix*vec4(pos+offset2/u_ratio,0.0,1.0)+projected_extrude;float extrude_length_without_perspective=length(dist);float extrude_length_with_perspective=length(projected_extrude.xy/gl_Position.w*u_units_to_pixels);v_gamma_scale=extrude_length_without_perspective/extrude_length_with_perspective;v_width2=vec2(outset,inset);}";
 
 var linePatternFrag = "uniform lowp float u_device_pixel_ratio;uniform vec2 u_texsize;uniform float u_fade;uniform mediump vec3 u_scale;uniform sampler2D u_image;varying vec2 v_normal;varying vec2 v_width2;varying float v_linesofar;varying float v_gamma_scale;varying float v_width;\n#pragma mapbox: define lowp vec4 pattern_from\n#pragma mapbox: define lowp vec4 pattern_to\n#pragma mapbox: define lowp float pixel_ratio_from\n#pragma mapbox: define lowp float pixel_ratio_to\n#pragma mapbox: define lowp float blur\n#pragma mapbox: define lowp float opacity\nvoid main() {\n#pragma mapbox: initialize mediump vec4 pattern_from\n#pragma mapbox: initialize mediump vec4 pattern_to\n#pragma mapbox: initialize lowp float pixel_ratio_from\n#pragma mapbox: initialize lowp float pixel_ratio_to\n#pragma mapbox: initialize lowp float blur\n#pragma mapbox: initialize lowp float opacity\nvec2 pattern_tl_a=pattern_from.xy;vec2 pattern_br_a=pattern_from.zw;vec2 pattern_tl_b=pattern_to.xy;vec2 pattern_br_b=pattern_to.zw;float tileZoomRatio=u_scale.x;float fromScale=u_scale.y;float toScale=u_scale.z;vec2 display_size_a=(pattern_br_a-pattern_tl_a)/pixel_ratio_from;vec2 display_size_b=(pattern_br_b-pattern_tl_b)/pixel_ratio_to;vec2 pattern_size_a=vec2(display_size_a.x*fromScale/tileZoomRatio,display_size_a.y);vec2 pattern_size_b=vec2(display_size_b.x*toScale/tileZoomRatio,display_size_b.y);float aspect_a=display_size_a.y/v_width;float aspect_b=display_size_b.y/v_width;float dist=length(v_normal)*v_width2.s;float blur2=(blur+1.0/u_device_pixel_ratio)*v_gamma_scale;float alpha=clamp(min(dist-(v_width2.t-blur2),v_width2.s-dist)/blur2,0.0,1.0);float x_a=mod(v_linesofar/pattern_size_a.x*aspect_a,1.0);float x_b=mod(v_linesofar/pattern_size_b.x*aspect_b,1.0);float y=0.5*v_normal.y+0.5;vec2 texel_size=1.0/u_texsize;vec2 pos_a=mix(pattern_tl_a*texel_size-texel_size,pattern_br_a*texel_size+texel_size,vec2(x_a,y));vec2 pos_b=mix(pattern_tl_b*texel_size-texel_size,pattern_br_b*texel_size+texel_size,vec2(x_b,y));vec4 color=mix(texture2D(u_image,pos_a),texture2D(u_image,pos_b),u_fade);gl_FragColor=color*alpha*opacity;\n#ifdef OVERDRAW_INSPECTOR\ngl_FragColor=vec4(1.0);\n#endif\n}";
 
@@ -34518,7 +34414,6 @@ var hillshadePrepareUniforms = function (context, locations) {
         'u_image': new performance.Uniform1i(context, locations.u_image),
         'u_dimension': new performance.Uniform2f(context, locations.u_dimension),
         'u_zoom': new performance.Uniform1f(context, locations.u_zoom),
-        'u_maxzoom': new performance.Uniform1f(context, locations.u_maxzoom),
         'u_unpack': new performance.Uniform4f(context, locations.u_unpack)
     };
 };
@@ -34544,7 +34439,7 @@ var hillshadeUniformValues = function (painter, tile, layer) {
         'u_accent': accent
     };
 };
-var hillshadeUniformPrepareValues = function (tileID, dem, maxzoom) {
+var hillshadeUniformPrepareValues = function (tileID, dem) {
     var stride = dem.stride;
     var matrix = performance.create();
     performance.ortho(matrix, 0, performance.EXTENT, -performance.EXTENT, 0, 0, 1);
@@ -34561,7 +34456,6 @@ var hillshadeUniformPrepareValues = function (tileID, dem, maxzoom) {
             stride
         ],
         'u_zoom': tileID.overscaledZ,
-        'u_maxzoom': maxzoom,
         'u_unpack': dem.getUnpackVector()
     };
 };
@@ -34588,7 +34482,8 @@ var lineGradientUniforms = function (context, locations) {
         'u_ratio': new performance.Uniform1f(context, locations.u_ratio),
         'u_device_pixel_ratio': new performance.Uniform1f(context, locations.u_device_pixel_ratio),
         'u_units_to_pixels': new performance.Uniform2f(context, locations.u_units_to_pixels),
-        'u_image': new performance.Uniform1i(context, locations.u_image)
+        'u_image': new performance.Uniform1i(context, locations.u_image),
+        'u_image_height': new performance.Uniform1f(context, locations.u_image_height)
     };
 };
 var linePatternUniforms = function (context, locations) {
@@ -34630,8 +34525,11 @@ var lineUniformValues = function (painter, tile, layer) {
         ]
     };
 };
-var lineGradientUniformValues = function (painter, tile, layer) {
-    return performance.extend(lineUniformValues(painter, tile, layer), { 'u_image': 0 });
+var lineGradientUniformValues = function (painter, tile, layer, imageHeight) {
+    return performance.extend(lineUniformValues(painter, tile, layer), {
+        'u_image': 0,
+        'u_image_height': imageHeight
+    });
 };
 var linePatternUniformValues = function (painter, tile, layer, crossfade) {
     var transform = painter.transform;
@@ -35133,7 +35031,8 @@ function drawLayerSymbols(painter, sourceCache, layer, coords, isText, translate
     var pitchWithMap = pitchAlignment === 'map';
     var alongLine = rotateWithMap && layer.layout.get('symbol-placement') !== 'point';
     var rotateInShader = rotateWithMap && !pitchWithMap && !alongLine;
-    var sortFeaturesByKey = layer.layout.get('symbol-sort-key').constantOr(1) !== undefined;
+    var hasSortKey = layer.layout.get('symbol-sort-key').constantOr(1) !== undefined;
+    var sortFeaturesByKey = false;
     var depthMode = painter.depthModeForSublayer(0, DepthMode.ReadOnly);
     var variablePlacement = layer.layout.get('text-variable-anchor');
     var tileRenderState = [];
@@ -35210,7 +35109,8 @@ function drawLayerSymbols(painter, sourceCache, layer, coords, isText, translate
             isSDF: isSDF,
             hasHalo: hasHalo
         };
-        if (sortFeaturesByKey) {
+        if (hasSortKey && bucket.canOverlap) {
+            sortFeaturesByKey = true;
             var oldSegments = buffers.segments.get();
             for (var i = 0, list = oldSegments; i < list.length; i += 1) {
                 var segment = list[i];
@@ -35447,17 +35347,6 @@ function drawLine(painter, sourceCache, layer, coords) {
     var context = painter.context;
     var gl = context.gl;
     var firstTile = true;
-    if (gradient) {
-        context.activeTexture.set(gl.TEXTURE0);
-        var gradientTexture = layer.gradientTexture;
-        if (!layer.gradient) {
-            return;
-        }
-        if (!gradientTexture) {
-            gradientTexture = layer.gradientTexture = new performance.Texture(context, layer.gradient, gl.RGBA);
-        }
-        gradientTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
-    }
     for (var i = 0, list = coords; i < list.length; i += 1) {
         var coord = list[i];
         var tile = sourceCache.getTile(coord);
@@ -35481,7 +35370,7 @@ function drawLine(painter, sourceCache, layer, coords) {
                 programConfiguration.setConstantPatternPositions(posTo, posFrom);
             }
         }
-        var uniformValues = image ? linePatternUniformValues(painter, tile, layer, crossfade) : dasharray ? lineSDFUniformValues(painter, tile, layer, dasharray, crossfade) : gradient ? lineGradientUniformValues(painter, tile, layer) : lineUniformValues(painter, tile, layer);
+        var uniformValues = image ? linePatternUniformValues(painter, tile, layer, crossfade) : dasharray ? lineSDFUniformValues(painter, tile, layer, dasharray, crossfade) : gradient ? lineGradientUniformValues(painter, tile, layer, bucket.lineClipsArray.length) : lineUniformValues(painter, tile, layer);
         if (image) {
             context.activeTexture.set(gl.TEXTURE0);
             tile.imageAtlasTexture.bind(gl.LINEAR, gl.CLAMP_TO_EDGE);
@@ -35489,8 +35378,38 @@ function drawLine(painter, sourceCache, layer, coords) {
         } else if (dasharray && (programChanged || painter.lineAtlas.dirty)) {
             context.activeTexture.set(gl.TEXTURE0);
             painter.lineAtlas.bind(context);
+        } else if (gradient) {
+            var layerGradient = bucket.gradients[layer.id];
+            var gradientTexture = layerGradient.texture;
+            if (layer.gradientVersion !== layerGradient.version) {
+                var textureResolution = 256;
+                if (layer.stepInterpolant) {
+                    var sourceMaxZoom = sourceCache.getSource().maxzoom;
+                    var potentialOverzoom = coord.canonical.z === sourceMaxZoom ? Math.ceil(1 << painter.transform.maxZoom - coord.canonical.z) : 1;
+                    var lineLength = bucket.maxLineLength / performance.EXTENT;
+                    var maxTilePixelSize = 1024;
+                    var maxTextureCoverage = lineLength * maxTilePixelSize * potentialOverzoom;
+                    textureResolution = performance.clamp(performance.nextPowerOfTwo(maxTextureCoverage), 256, context.maxTextureSize);
+                }
+                layerGradient.gradient = performance.renderColorRamp({
+                    expression: layer.gradientExpression(),
+                    evaluationKey: 'lineProgress',
+                    resolution: textureResolution,
+                    image: layerGradient.gradient || undefined,
+                    clips: bucket.lineClipsArray
+                });
+                if (layerGradient.texture) {
+                    layerGradient.texture.update(layerGradient.gradient);
+                } else {
+                    layerGradient.texture = new performance.Texture(context, layerGradient.gradient, gl.RGBA);
+                }
+                layerGradient.version = layer.gradientVersion;
+                gradientTexture = layerGradient.texture;
+            }
+            context.activeTexture.set(gl.TEXTURE0);
+            gradientTexture.bind(layer.stepInterpolant ? gl.NEAREST : gl.LINEAR, gl.CLAMP_TO_EDGE);
         }
-        program.draw(context, gl.TRIANGLES, depthMode, painter.stencilModeForClipping(coord), colorMode, CullFaceMode.disabled, uniformValues, layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments, layer.paint, painter.transform.zoom, programConfiguration);
+        program.draw(context, gl.TRIANGLES, depthMode, painter.stencilModeForClipping(coord), colorMode, CullFaceMode.disabled, uniformValues, layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments, layer.paint, painter.transform.zoom, programConfiguration, bucket.layoutVertexBuffer2);
         firstTile = false;
     }
 }
@@ -35628,7 +35547,6 @@ function drawHillshade(painter, sourceCache, layer, tileIDs) {
         return;
     }
     var context = painter.context;
-    var sourceMaxZoom = sourceCache.getSource().maxzoom;
     var depthMode = painter.depthModeForSublayer(0, DepthMode.ReadOnly);
     var colorMode = painter.colorModeForRenderPass();
     var ref = painter.renderPass === 'translucent' ? painter.stencilConfigForOverlap(tileIDs) : [
@@ -35641,7 +35559,7 @@ function drawHillshade(painter, sourceCache, layer, tileIDs) {
         var coord = list[i];
         var tile = sourceCache.getTile(coord);
         if (tile.needsHillshadePrepare && painter.renderPass === 'offscreen') {
-            prepareHillshade(painter, tile, layer, sourceMaxZoom, depthMode, StencilMode.disabled, colorMode);
+            prepareHillshade(painter, tile, layer, depthMode, StencilMode.disabled, colorMode);
         } else if (painter.renderPass === 'translucent') {
             renderHillshade(painter, tile, layer, depthMode, stencilModes[coord.overscaledZ], colorMode);
         }
@@ -35666,7 +35584,7 @@ function renderHillshade(painter, tile, layer, depthMode, stencilMode, colorMode
     var uniformValues = hillshadeUniformValues(painter, tile, layer);
     program.draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode, CullFaceMode.disabled, uniformValues, layer.id, painter.rasterBoundsBuffer, painter.quadTriangleIndexBuffer, painter.rasterBoundsSegments);
 }
-function prepareHillshade(painter, tile, layer, sourceMaxZoom, depthMode, stencilMode, colorMode) {
+function prepareHillshade(painter, tile, layer, depthMode, stencilMode, colorMode) {
     var context = painter.context;
     var gl = context.gl;
     var dem = tile.dem;
@@ -35704,7 +35622,7 @@ function prepareHillshade(painter, tile, layer, sourceMaxZoom, depthMode, stenci
             tileSize,
             tileSize
         ]);
-        painter.useProgram('hillshadePrepare').draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode, CullFaceMode.disabled, hillshadeUniformPrepareValues(tile.tileID, dem, sourceMaxZoom), layer.id, painter.rasterBoundsBuffer, painter.quadTriangleIndexBuffer, painter.rasterBoundsSegments);
+        painter.useProgram('hillshadePrepare').draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode, CullFaceMode.disabled, hillshadeUniformPrepareValues(tile.tileID, dem), layer.id, painter.rasterBoundsBuffer, painter.quadTriangleIndexBuffer, painter.rasterBoundsSegments);
         tile.needsHillshadePrepare = false;
     }
 }
@@ -37426,9 +37344,9 @@ Hash.prototype._onHashChange = function _onHashChange() {
     return false;
 };
 Hash.prototype._updateHashUnthrottled = function _updateHashUnthrottled() {
-    var hash = this.getHashString();
+    var location = performance.window.location.href.replace(/(#.+)?$/, this.getHashString());
     try {
-        performance.window.history.replaceState(performance.window.history.state, '', hash);
+        performance.window.history.replaceState(performance.window.history.state, null, location);
     } catch (SecurityError) {
     }
 };
@@ -37821,6 +37739,9 @@ BoxZoomHandler.prototype.keydown = function keydown(e) {
         this._fireEvent('boxzoomcancel', e);
     }
 };
+BoxZoomHandler.prototype.blur = function blur() {
+    this.reset();
+};
 BoxZoomHandler.prototype.reset = function reset() {
     this._active = false;
     this._container.classList.remove('mapboxgl-crosshair');
@@ -38030,6 +37951,9 @@ var MouseHandler = function MouseHandler(options) {
     this.reset();
     this._clickTolerance = options.clickTolerance || 1;
 };
+MouseHandler.prototype.blur = function blur() {
+    this.reset();
+};
 MouseHandler.prototype.reset = function reset() {
     this._active = false;
     this._moved = false;
@@ -38184,7 +38108,7 @@ TouchPanHandler.prototype.touchstart = function touchstart(e, points, mapTouches
     return this._calculateTransform(e, points, mapTouches);
 };
 TouchPanHandler.prototype.touchmove = function touchmove(e, points, mapTouches) {
-    if (!this._active) {
+    if (!this._active || mapTouches.length < this._minTouches) {
         return;
     }
     e.preventDefault();
@@ -38481,6 +38405,10 @@ var KeyboardHandler = function KeyboardHandler() {
     this._panStep = stepOptions.panStep;
     this._bearingStep = stepOptions.bearingStep;
     this._pitchStep = stepOptions.pitchStep;
+    this._rotationDisabled = false;
+};
+KeyboardHandler.prototype.blur = function blur() {
+    this.reset();
 };
 KeyboardHandler.prototype.reset = function reset() {
     this._active = false;
@@ -38542,6 +38470,10 @@ KeyboardHandler.prototype.keydown = function keydown(e) {
     default:
         return;
     }
+    if (this._rotationDisabled) {
+        bearingDir = 0;
+        pitchDir = 0;
+    }
     return {
         cameraAnimation: function (map) {
             var zoom = map.getZoom();
@@ -38574,6 +38506,12 @@ KeyboardHandler.prototype.isEnabled = function isEnabled() {
 KeyboardHandler.prototype.isActive = function isActive() {
     return this._active;
 };
+KeyboardHandler.prototype.disableRotation = function disableRotation() {
+    this._rotationDisabled = true;
+};
+KeyboardHandler.prototype.enableRotation = function enableRotation() {
+    this._rotationDisabled = false;
+};
 function easeOut(t) {
     return t * (2 - t);
 }
@@ -38589,12 +38527,7 @@ var ScrollZoomHandler = function ScrollZoomHandler(map, handler) {
     this._delta = 0;
     this._defaultZoomRate = defaultZoomRate;
     this._wheelZoomRate = wheelZoomRate;
-    performance.bindAll([
-        '_onWheel',
-        '_onTimeout',
-        '_onScrollFrame',
-        '_onScrollFinished'
-    ], this);
+    performance.bindAll(['_onTimeout'], this);
 };
 ScrollZoomHandler.prototype.setZoomRate = function setZoomRate(zoomRate) {
     this._defaultZoomRate = zoomRate;
@@ -38690,9 +38623,6 @@ ScrollZoomHandler.prototype._start = function _start(e) {
     }
 };
 ScrollZoomHandler.prototype.renderFrame = function renderFrame() {
-    return this._onScrollFrame();
-};
-ScrollZoomHandler.prototype._onScrollFrame = function _onScrollFrame() {
     var this$1 = this;
     if (!this._frameId) {
         return;
@@ -38767,6 +38697,9 @@ ScrollZoomHandler.prototype._smoothOutEasing = function _smoothOutEasing(duratio
     };
     return easing;
 };
+ScrollZoomHandler.prototype.blur = function blur() {
+    this.reset();
+};
 ScrollZoomHandler.prototype.reset = function reset() {
     this._active = false;
 };
@@ -38795,6 +38728,9 @@ var ClickZoomHandler = function ClickZoomHandler() {
 };
 ClickZoomHandler.prototype.reset = function reset() {
     this._active = false;
+};
+ClickZoomHandler.prototype.blur = function blur() {
+    this.reset();
 };
 ClickZoomHandler.prototype.dblclick = function dblclick(e, point) {
     e.preventDefault();
@@ -39188,7 +39124,7 @@ HandlerManager.prototype._add = function _add(handlerName, handler, allowed) {
     });
     this._handlersById[handlerName] = handler;
 };
-HandlerManager.prototype.stop = function stop() {
+HandlerManager.prototype.stop = function stop(allowEndAnimation) {
     if (this._updatingCamera) {
         return;
     }
@@ -39198,7 +39134,7 @@ HandlerManager.prototype.stop = function stop() {
         handler.reset();
     }
     this._inertia.clear();
-    this._fireEvents({}, {});
+    this._fireEvents({}, {}, allowEndAnimation);
     this._changes = [];
 };
 HandlerManager.prototype.isActive = function isActive() {
@@ -39246,10 +39182,6 @@ HandlerManager.prototype._getMapTouches = function _getMapTouches(touches) {
     return mapTouches;
 };
 HandlerManager.prototype.handleEvent = function handleEvent(e, eventName) {
-    if (e.type === 'blur') {
-        this.stop();
-        return;
-    }
     this._updatingCamera = true;
     var inputEvent = e.type === 'renderFrame' ? undefined : e;
     var mergedHandlerResult = { needsRenderFrame: false };
@@ -39303,7 +39235,7 @@ HandlerManager.prototype.handleEvent = function handleEvent(e, eventName) {
     var cameraAnimation = mergedHandlerResult.cameraAnimation;
     if (cameraAnimation) {
         this._inertia.clear();
-        this._fireEvents({}, {});
+        this._fireEvents({}, {}, true);
         this._changes = [];
         cameraAnimation(this._map);
     }
@@ -39370,7 +39302,7 @@ HandlerManager.prototype._updateMapTransform = function _updateMapTransform(comb
     var map = this._map;
     var tr = map.transform;
     if (!hasChange(combinedResult)) {
-        return this._fireEvents(combinedEventsInProgress, deactivatedHandlers);
+        return this._fireEvents(combinedEventsInProgress, deactivatedHandlers, true);
     }
     var panDelta = combinedResult.panDelta;
     var zoomDelta = combinedResult.zoomDelta;
@@ -39398,9 +39330,9 @@ HandlerManager.prototype._updateMapTransform = function _updateMapTransform(comb
     if (!combinedResult.noInertia) {
         this._inertia.record(combinedResult);
     }
-    this._fireEvents(combinedEventsInProgress, deactivatedHandlers);
+    this._fireEvents(combinedEventsInProgress, deactivatedHandlers, true);
 };
-HandlerManager.prototype._fireEvents = function _fireEvents(newEventsInProgress, deactivatedHandlers) {
+HandlerManager.prototype._fireEvents = function _fireEvents(newEventsInProgress, deactivatedHandlers, allowEndAnimation) {
     var this$1 = this;
     var wasMoving = isMoving(this._eventsInProgress);
     var nowMoving = isMoving(newEventsInProgress);
@@ -39418,9 +39350,6 @@ HandlerManager.prototype._fireEvents = function _fireEvents(newEventsInProgress,
     }
     for (var name in startEvents) {
         this._fireEvent(name, startEvents[name]);
-    }
-    if (newEventsInProgress.rotate) {
-        this._bearingChanged = true;
     }
     if (nowMoving) {
         this._fireEvent('move', nowMoving.originalEvent);
@@ -39446,7 +39375,7 @@ HandlerManager.prototype._fireEvents = function _fireEvents(newEventsInProgress,
         this._fireEvent(name$1, endEvents[name$1]);
     }
     var stillMoving = isMoving(this._eventsInProgress);
-    if ((wasMoving || nowMoving) && !stillMoving) {
+    if (allowEndAnimation && (wasMoving || nowMoving) && !stillMoving) {
         this._updatingCamera = true;
         var inertialEase = this._inertia._onMoveEnd(this._map.dragPan._inertiaOptions);
         var shouldSnapToNorth = function (bearing) {
@@ -39463,21 +39392,24 @@ HandlerManager.prototype._fireEvents = function _fireEvents(newEventsInProgress,
                 this._map.resetNorth();
             }
         }
-        this._bearingChanged = false;
         this._updatingCamera = false;
     }
 };
 HandlerManager.prototype._fireEvent = function _fireEvent(type, e) {
     this._map.fire(new performance.Event(type, e ? { originalEvent: e } : {}));
 };
-HandlerManager.prototype._triggerRenderFrame = function _triggerRenderFrame() {
+HandlerManager.prototype._requestFrame = function _requestFrame() {
     var this$1 = this;
+    this._map.triggerRepaint();
+    return this._map._renderTaskQueue.add(function (timeStamp) {
+        delete this$1._frameId;
+        this$1.handleEvent(new RenderFrameEvent('renderFrame', { timeStamp: timeStamp }));
+        this$1._applyChanges();
+    });
+};
+HandlerManager.prototype._triggerRenderFrame = function _triggerRenderFrame() {
     if (this._frameId === undefined) {
-        this._frameId = this._map._requestRenderFrame(function (timeStamp) {
-            delete this$1._frameId;
-            this$1.handleEvent(new RenderFrameEvent('renderFrame', { timeStamp: timeStamp }));
-            this$1._applyChanges();
-        });
+        this._frameId = this._requestFrame();
     }
 };
 
@@ -39569,7 +39501,8 @@ var Camera = function (Evented) {
     };
     Camera.prototype.cameraForBounds = function cameraForBounds(bounds, options) {
         bounds = performance.LngLatBounds.convert(bounds);
-        return this._cameraForBoxAndBearing(bounds.getNorthWest(), bounds.getSouthEast(), 0, options);
+        var bearing = options && options.bearing || 0;
+        return this._cameraForBoxAndBearing(bounds.getNorthWest(), bounds.getSouthEast(), bearing, options);
     };
     Camera.prototype._cameraForBoxAndBearing = function _cameraForBoxAndBearing(p0, p1, bearing, options) {
         var defaultPadding = {
@@ -39612,10 +39545,12 @@ var Camera = function (Evented) {
             return;
         }
         var zoom = Math.min(tr.scaleZoom(tr.scale * Math.min(scaleX, scaleY)), options.maxZoom);
-        var offset = performance.Point.convert(options.offset);
+        var offset = typeof options.offset.x === 'number' ? new performance.Point(options.offset.x, options.offset.y) : performance.Point.convert(options.offset);
         var paddingOffsetX = (options.padding.left - options.padding.right) / 2;
         var paddingOffsetY = (options.padding.top - options.padding.bottom) / 2;
-        var offsetAtInitialZoom = new performance.Point(offset.x + paddingOffsetX, offset.y + paddingOffsetY);
+        var paddingOffset = new performance.Point(paddingOffsetX, paddingOffsetY);
+        var rotatedPaddingOffset = paddingOffset.rotate(bearing * Math.PI / 180);
+        var offsetAtInitialZoom = offset.add(rotatedPaddingOffset);
         var offsetAtFinalZoom = offsetAtInitialZoom.mult(tr.scale / tr.zoomScale(zoom));
         var center = tr.unproject(p0world.add(p1world).div(2).sub(offsetAtFinalZoom));
         return {
@@ -39712,7 +39647,6 @@ var Camera = function (Evented) {
         this._padding = !tr.isPaddingEqual(padding);
         this._easeId = options.easeId;
         this._prepareEase(eventData, options.noMoveStart, currently);
-        clearTimeout(this._easeEndTimeoutID);
         this._ease(function (k) {
             if (this$1._zooming) {
                 tr.zoom = performance.number(startZoom, zoom, k);
@@ -39928,7 +39862,7 @@ var Camera = function (Evented) {
         if (!allowGestures) {
             var handlers = this.handlers;
             if (handlers) {
-                handlers.stop();
+                handlers.stop(false);
             }
         }
         return this;
@@ -39981,6 +39915,7 @@ var AttributionControl = function AttributionControl(options) {
         options = {};
     this.options = options;
     performance.bindAll([
+        '_toggleAttribution',
         '_updateEditLink',
         '_updateData',
         '_updateCompact'
@@ -39993,7 +39928,11 @@ AttributionControl.prototype.onAdd = function onAdd(map) {
     var compact = this.options && this.options.compact;
     this._map = map;
     this._container = DOM.create('div', 'mapboxgl-ctrl mapboxgl-ctrl-attrib');
+    this._compactButton = DOM.create('button', 'mapboxgl-ctrl-attrib-button', this._container);
+    this._compactButton.addEventListener('click', this._toggleAttribution);
+    this._setElementTitle(this._compactButton, 'ToggleAttribution');
     this._innerContainer = DOM.create('div', 'mapboxgl-ctrl-attrib-inner', this._container);
+    this._innerContainer.setAttribute('role', 'list');
     if (compact) {
         this._container.classList.add('mapboxgl-compact');
     }
@@ -40016,6 +39955,20 @@ AttributionControl.prototype.onRemove = function onRemove() {
     this._map.off('resize', this._updateCompact);
     this._map = undefined;
     this._attribHTML = undefined;
+};
+AttributionControl.prototype._setElementTitle = function _setElementTitle(element, title) {
+    var str = this._map._getUIString('AttributionControl.' + title);
+    element.title = str;
+    element.setAttribute('aria-label', str);
+};
+AttributionControl.prototype._toggleAttribution = function _toggleAttribution() {
+    if (this._container.classList.contains('mapboxgl-compact-show')) {
+        this._container.classList.remove('mapboxgl-compact-show');
+        this._compactButton.setAttribute('aria-pressed', 'false');
+    } else {
+        this._container.classList.add('mapboxgl-compact-show');
+        this._compactButton.setAttribute('aria-pressed', 'true');
+    }
 };
 AttributionControl.prototype._updateEditLink = function _updateEditLink() {
     var editLink = this._editLink;
@@ -40045,10 +39998,11 @@ AttributionControl.prototype._updateEditLink = function _updateEditLink() {
         }, '?');
         editLink.href = performance.config.FEEDBACK_URL + '/' + paramString + (this._map._hash ? this._map._hash.getHashString(true) : '');
         editLink.rel = 'noopener nofollow';
+        this._setElementTitle(editLink, 'MapFeedback');
     }
 };
 AttributionControl.prototype._updateData = function _updateData(e) {
-    if (e && (e.sourceDataType === 'metadata' || e.dataType === 'style')) {
+    if (e && (e.sourceDataType === 'metadata' || e.sourceDataType === 'visibility' || e.dataType === 'style')) {
         this._updateAttributions();
         this._updateEditLink();
     }
@@ -40113,7 +40067,7 @@ AttributionControl.prototype._updateCompact = function _updateCompact() {
     if (this._map.getCanvasContainer().offsetWidth <= 640) {
         this._container.classList.add('mapboxgl-compact');
     } else {
-        this._container.classList.remove('mapboxgl-compact');
+        this._container.classList.remove('mapboxgl-compact', 'mapboxgl-compact-show');
     }
 };
 
@@ -40229,6 +40183,8 @@ TaskQueue.prototype.clear = function clear() {
 };
 
 var defaultLocale = {
+    'AttributionControl.ToggleAttribution': 'Toggle attribution',
+    'AttributionControl.MapFeedback': 'Map feedback',
     'FullscreenControl.Enter': 'Enter fullscreen',
     'FullscreenControl.Exit': 'Exit fullscreen',
     'GeolocateControl.FindMyLocation': 'Find my location',
@@ -40323,6 +40279,7 @@ var Map = function (Camera) {
         this._controls = [];
         this._mapId = performance.uniqueId();
         this._locale = performance.extend({}, defaultLocale, options.locale);
+        this._clickTolerance = options.clickTolerance;
         this._requestManager = new performance.RequestManager(options.transformRequest, options.accessToken);
         if (typeof options.container === 'string') {
             this._container = performance.window.document.getElementById(options.container);
@@ -40340,6 +40297,7 @@ var Map = function (Camera) {
         performance.bindAll([
             '_onWindowOnline',
             '_onWindowResize',
+            '_onMapScroll',
             '_contextLost',
             '_contextRestored'
         ], this);
@@ -40360,6 +40318,7 @@ var Map = function (Camera) {
         if (typeof performance.window !== 'undefined') {
             performance.window.addEventListener('online', this._onWindowOnline, false);
             performance.window.addEventListener('resize', this._onWindowResize, false);
+            performance.window.addEventListener('orientationchange', this._onWindowResize, false);
         }
         this.handlers = new HandlerManager(this, options);
         var hashName = typeof options.hash === 'string' && options.hash || undefined;
@@ -40415,11 +40374,12 @@ var Map = function (Camera) {
         return this._mapId;
     };
     Map.prototype.addControl = function addControl(control, position) {
-        if (position === undefined && control.getDefaultPosition) {
-            position = control.getDefaultPosition();
-        }
         if (position === undefined) {
-            position = 'top-right';
+            if (control.getDefaultPosition) {
+                position = control.getDefaultPosition();
+            } else {
+                position = 'top-right';
+            }
         }
         if (!control || !control.onAdd) {
             return this.fire(new performance.ErrorEvent(new Error('Invalid argument to map.addControl(). Argument must be a control with onAdd and onRemove methods.')));
@@ -40445,16 +40405,21 @@ var Map = function (Camera) {
         control.onRemove(this);
         return this;
     };
+    Map.prototype.hasControl = function hasControl(control) {
+        return this._controls.indexOf(control) > -1;
+    };
     Map.prototype.resize = function resize(eventData) {
-        var dimensions = this._containerDimensions();
-        var width = dimensions[0];
-        var height = dimensions[1];
+        var ref = this._containerDimensions();
+        var width = ref[0];
+        var height = ref[1];
+        if (width === this.transform.width && height === this.transform.height) {
+            return this;
+        }
         this._resizeCanvas(width, height);
         this.transform.resize(width, height);
         this.painter.resize(width, height);
         var fireMoving = !this._moving;
         if (fireMoving) {
-            this.stop();
             this.fire(new performance.Event('movestart', eventData)).fire(new performance.Event('move', eventData));
         }
         this.fire(new performance.Event('resize', eventData));
@@ -41034,6 +40999,7 @@ var Map = function (Camera) {
         this._canvas.addEventListener('webglcontextrestored', this._contextRestored, false);
         this._canvas.setAttribute('tabindex', '0');
         this._canvas.setAttribute('aria-label', 'Map');
+        this._canvas.setAttribute('role', 'region');
         var dimensions = this._containerDimensions();
         this._resizeCanvas(dimensions[0], dimensions[1]);
         var controlContainer = this._controlContainer = DOM.create('div', 'mapboxgl-control-container', container);
@@ -41046,6 +41012,7 @@ var Map = function (Camera) {
         ].forEach(function (positionName) {
             positions[positionName] = DOM.create('div', 'mapboxgl-ctrl-' + positionName, controlContainer);
         });
+        this._container.addEventListener('scroll', this._onMapScroll, false);
     };
     Map.prototype._resizeCanvas = function _resizeCanvas(width, height) {
         var pixelRatio = performance.browser.devicePixelRatio || 1;
@@ -41081,6 +41048,14 @@ var Map = function (Camera) {
         this.resize();
         this._update();
         this.fire(new performance.Event('webglcontextrestored', { originalEvent: event }));
+    };
+    Map.prototype._onMapScroll = function _onMapScroll(event) {
+        if (event.target !== this._container) {
+            return;
+        }
+        this._container.scrollTop = 0;
+        this._container.scrollLeft = 0;
+        return false;
     };
     Map.prototype.loaded = function loaded() {
         return !this._styleDirty && !this._sourcesDirty && !!this.style && this.style.loaded();
@@ -41211,6 +41186,7 @@ var Map = function (Camera) {
         this.setStyle(null);
         if (typeof performance.window !== 'undefined') {
             performance.window.removeEventListener('resize', this._onWindowResize, false);
+            performance.window.removeEventListener('orientationchange', this._onWindowResize, false);
             performance.window.removeEventListener('online', this._onWindowOnline, false);
         }
         var extension = this.painter.context.gl.getExtension('WEBGL_lose_context');
@@ -41357,8 +41333,12 @@ var NavigationControl = function NavigationControl(options) {
 };
 NavigationControl.prototype._updateZoomButtons = function _updateZoomButtons() {
     var zoom = this._map.getZoom();
-    this._zoomInButton.disabled = zoom === this._map.getMaxZoom();
-    this._zoomOutButton.disabled = zoom === this._map.getMinZoom();
+    var isMax = zoom === this._map.getMaxZoom();
+    var isMin = zoom === this._map.getMinZoom();
+    this._zoomInButton.disabled = isMax;
+    this._zoomOutButton.disabled = isMin;
+    this._zoomInButton.setAttribute('aria-disabled', isMax.toString());
+    this._zoomOutButton.setAttribute('aria-disabled', isMin.toString());
 };
 NavigationControl.prototype._rotateCompassArrow = function _rotateCompassArrow() {
     var rotate = this.options.visualizePitch ? 'scale(' + 1 / Math.pow(Math.cos(this._map.transform.pitch * (Math.PI / 180)), 0.5) + ') rotateX(' + this._map.transform.pitch + 'deg) rotateZ(' + this._map.transform.angle * (180 / Math.PI) + 'deg)' : 'rotate(' + this._map.transform.angle * (180 / Math.PI) + 'deg)';
@@ -41578,7 +41558,6 @@ function applyAnchorClass(element, anchor, prefix) {
 
 var Marker = function (Evented) {
     function Marker(options, legacyOptions) {
-        var this$1 = this;
         Evented.call(this);
         if (options instanceof performance.window.HTMLElement || legacyOptions) {
             options = performance.extend({ element: options }, legacyOptions);
@@ -41595,6 +41574,8 @@ var Marker = function (Evented) {
         this._color = options && options.color || '#3FB1CE';
         this._scale = options && options.scale || 1;
         this._draggable = options && options.draggable || false;
+        this._clickTolerance = options && options.clickTolerance || 0;
+        this._isDragging = false;
         this._state = 'inactive';
         this._rotation = options && options.rotation || 0;
         this._rotationAlignment = options && options.rotationAlignment || 'auto';
@@ -41719,11 +41700,6 @@ var Marker = function (Evented) {
         });
         this._element.addEventListener('mousedown', function (e) {
             e.preventDefault();
-        });
-        this._element.addEventListener('focus', function () {
-            var el = this$1._map.getContainer();
-            el.scrollTop = 0;
-            el.scrollLeft = 0;
         });
         applyAnchorClass(this._element, this._anchor, 'marker');
         this._popup = null;
@@ -41900,6 +41876,13 @@ var Marker = function (Evented) {
         return this;
     };
     Marker.prototype._onMove = function _onMove(e) {
+        if (!this._isDragging) {
+            var clickTolerance = this._clickTolerance || this._map._clickTolerance;
+            this._isDragging = e.point.dist(this._pointerdownPos) >= clickTolerance;
+        }
+        if (!this._isDragging) {
+            return;
+        }
         this._pos = e.point.sub(this._positionDelta);
         this._lngLat = this._map.unproject(this._pos);
         this.setLngLat(this._lngLat);
@@ -41913,6 +41896,8 @@ var Marker = function (Evented) {
     Marker.prototype._onUp = function _onUp() {
         this._element.style.pointerEvents = 'auto';
         this._positionDelta = null;
+        this._pointerdownPos = null;
+        this._isDragging = false;
         this._map.off('mousemove', this._onMove);
         this._map.off('touchmove', this._onMove);
         if (this._state === 'active') {
@@ -41924,6 +41909,7 @@ var Marker = function (Evented) {
         if (this._element.contains(e.originalEvent.target)) {
             e.preventDefault();
             this._positionDelta = e.point.sub(this._pos).add(this._offset);
+            this._pointerdownPos = e.point;
             this._state = 'pending';
             this._map.on('mousemove', this._onMove);
             this._map.on('touchmove', this._onMove);
@@ -42507,9 +42493,19 @@ FullscreenControl.prototype._onClickFullscreen = function _onClickFullscreen() {
 var defaultOptions$5 = {
     closeButton: true,
     closeOnClick: true,
+    focusAfterOpen: true,
     className: '',
     maxWidth: '240px'
 };
+var focusQuerySelector = [
+    'a[href]',
+    '[tabindex]:not([tabindex=\'-1\'])',
+    '[contenteditable]:not([contenteditable=\'false\'])',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])'
+].join(', ');
 var Popup = function (Evented) {
     function Popup(options) {
         Evented.call(this);
@@ -42540,6 +42536,7 @@ var Popup = function (Evented) {
         }
         this._map.on('remove', this.remove);
         this._update();
+        this._focusFirstElement();
         if (this._trackPointer) {
             this._map.on('mousemove', this._onMouseMove);
             this._map.on('mouseup', this._onMouseUp);
@@ -42639,9 +42636,19 @@ var Popup = function (Evented) {
         return this;
     };
     Popup.prototype.setDOMContent = function setDOMContent(htmlNode) {
-        this._createContent();
+        if (this._content) {
+            while (this._content.hasChildNodes()) {
+                if (this._content.firstChild) {
+                    this._content.removeChild(this._content.firstChild);
+                }
+            }
+        } else {
+            this._content = DOM.create('div', 'mapboxgl-popup-content', this._container);
+        }
         this._content.appendChild(htmlNode);
+        this._createCloseButton();
         this._update();
+        this._focusFirstElement();
         return this;
     };
     Popup.prototype.addClassName = function addClassName(className) {
@@ -42654,16 +42661,17 @@ var Popup = function (Evented) {
             this._container.classList.remove(className);
         }
     };
+    Popup.prototype.setOffset = function setOffset(offset) {
+        this.options.offset = offset;
+        this._update();
+        return this;
+    };
     Popup.prototype.toggleClassName = function toggleClassName(className) {
         if (this._container) {
             return this._container.classList.toggle(className);
         }
     };
-    Popup.prototype._createContent = function _createContent() {
-        if (this._content) {
-            DOM.remove(this._content);
-        }
-        this._content = DOM.create('div', 'mapboxgl-popup-content', this._container);
+    Popup.prototype._createCloseButton = function _createCloseButton() {
         if (this.options.closeButton) {
             this._closeButton = DOM.create('button', 'mapboxgl-popup-close-button', this._content);
             this._closeButton.type = 'button';
@@ -42737,6 +42745,15 @@ var Popup = function (Evented) {
         var offsetedPos = pos.add(offset[anchor]).round();
         DOM.setTransform(this._container, anchorTranslate[anchor] + ' translate(' + offsetedPos.x + 'px,' + offsetedPos.y + 'px)');
         applyAnchorClass(this._container, anchor, 'popup');
+    };
+    Popup.prototype._focusFirstElement = function _focusFirstElement() {
+        if (!this.options.focusAfterOpen || !this._container) {
+            return;
+        }
+        var firstFocusable = this._container.querySelector(focusQuerySelector);
+        if (firstFocusable) {
+            firstFocusable.focus();
+        }
     };
     Popup.prototype._onClose = function _onClose() {
         this.remove();

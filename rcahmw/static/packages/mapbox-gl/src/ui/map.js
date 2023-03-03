@@ -308,6 +308,7 @@ class Map extends Camera {
     _requestManager: RequestManager;
     _locale: Object;
     _removed: boolean;
+    _clickTolerance: number;
 
     /**
      * The map's {@link ScrollZoomHandler}, which implements zooming in and out with a scroll wheel or trackpad.
@@ -398,6 +399,7 @@ class Map extends Camera {
         this._controls = [];
         this._mapId = uniqueId();
         this._locale = extend({}, defaultLocale, options.locale);
+        this._clickTolerance = options.clickTolerance;
 
         this._requestManager = new RequestManager(options.transformRequest, options.accessToken);
 
@@ -419,6 +421,7 @@ class Map extends Camera {
         bindAll([
             '_onWindowOnline',
             '_onWindowResize',
+            '_onMapScroll',
             '_contextLost',
             '_contextRestored'
         ], this);
@@ -436,6 +439,7 @@ class Map extends Camera {
         if (typeof window !== 'undefined') {
             window.addEventListener('online', this._onWindowOnline, false);
             window.addEventListener('resize', this._onWindowResize, false);
+            window.addEventListener('orientationchange', this._onWindowResize, false);
         }
 
         this.handlers = new HandlerManager(this, options);
@@ -504,11 +508,12 @@ class Map extends Camera {
      * @see [Display map navigation controls](https://www.mapbox.com/mapbox-gl-js/example/navigation/)
      */
     addControl(control: IControl, position?: ControlPosition) {
-        if (position === undefined && control.getDefaultPosition) {
-            position = control.getDefaultPosition();
-        }
         if (position === undefined) {
-            position = 'top-right';
+            if (control.getDefaultPosition) {
+                position = control.getDefaultPosition();
+            } else {
+                position = 'top-right';
+            }
         }
         if (!control || !control.onAdd) {
             return this.fire(new ErrorEvent(new Error(
@@ -551,6 +556,23 @@ class Map extends Camera {
     }
 
     /**
+     * Checks if a control exists on the map.
+     *
+     * @param {IControl} control The {@link IControl} to check.
+     * @returns {boolean} True if map contains control.
+     * @example
+     * // Define a new navigation control.
+     * var navigation = new mapboxgl.NavigationControl();
+     * // Add zoom and rotation controls to the map.
+     * map.addControl(navigation);
+     * // Check that the navigation control exists on the map.
+     * map.hasControl(navigation);
+     */
+    hasControl(control: IControl) {
+        return this._controls.indexOf(control) > -1;
+    }
+
+    /**
      * Resizes the map according to the dimensions of its
      * `container` element.
      *
@@ -569,9 +591,10 @@ class Map extends Camera {
      * if (mapDiv.style.visibility === true) map.resize();
      */
     resize(eventData?: Object) {
-        const dimensions = this._containerDimensions();
-        const width = dimensions[0];
-        const height = dimensions[1];
+        const [width, height] = this._containerDimensions();
+
+        // do nothing if container remained the same size
+        if (width === this.transform.width && height === this.transform.height) return this;
 
         this._resizeCanvas(width, height);
         this.transform.resize(width, height);
@@ -579,7 +602,6 @@ class Map extends Camera {
 
         const fireMoving = !this._moving;
         if (fireMoving) {
-            this.stop();
             this.fire(new Event('movestart', eventData))
                 .fire(new Event('move', eventData));
         }
@@ -1797,8 +1819,10 @@ class Map extends Camera {
      * @param {Object} [layer.metadata] (optional) Arbitrary properties useful to track with the layer, but do not influence rendering.
      * @param {string} [layer.renderingMode] This is only applicable for layers with the type `custom`.
      * See {@link CustomLayerInterface} for more information.
-     * @param {string} [beforeId] The ID of an existing layer to insert the new layer before.
-     * If this argument is not specified, the layer will be appended to the end of the layers array.
+     * @param {string} [beforeId] The ID of an existing layer to insert the new layer before,
+     * resulting in the new layer appearing visually beneath the existing layer.
+     * If this argument is not specified, the layer will be appended to the end of the layers array
+     * and appear visually above all other layers.
      *
      * @returns {Map} `this`
      *
@@ -2194,7 +2218,7 @@ class Map extends Camera {
      *   if (e.features.length > 0) {
      *     map.getFeatureState({
      *       source: 'my-source',
-     *       sourceLayer: 'my-source-layer'
+     *       sourceLayer: 'my-source-layer',
      *       id: e.features[0].id
      *     });
      *   }
@@ -2283,6 +2307,7 @@ class Map extends Camera {
         this._canvas.addEventListener('webglcontextrestored', this._contextRestored, false);
         this._canvas.setAttribute('tabindex', '0');
         this._canvas.setAttribute('aria-label', 'Map');
+        this._canvas.setAttribute('role', 'region');
 
         const dimensions = this._containerDimensions();
         this._resizeCanvas(dimensions[0], dimensions[1]);
@@ -2292,6 +2317,8 @@ class Map extends Camera {
         ['top-left', 'top-right', 'bottom-left', 'bottom-right'].forEach((positionName) => {
             positions[positionName] = DOM.create('div', `mapboxgl-ctrl-${positionName}`, controlContainer);
         });
+
+        this._container.addEventListener('scroll', this._onMapScroll, false);
     }
 
     _resizeCanvas(width: number, height: number) {
@@ -2340,6 +2367,15 @@ class Map extends Camera {
         this.resize();
         this._update();
         this.fire(new Event('webglcontextrestored', {originalEvent: event}));
+    }
+
+    _onMapScroll(event: *) {
+        if (event.target !== this._container) return;
+
+        // Revert any scroll which would move the canvas outside of the view
+        this._container.scrollTop = 0;
+        this._container.scrollLeft = 0;
+        return false;
     }
 
     /**
@@ -2559,6 +2595,7 @@ class Map extends Camera {
         this.setStyle(null);
         if (typeof window !== 'undefined') {
             window.removeEventListener('resize', this._onWindowResize, false);
+            window.removeEventListener('orientationchange', this._onWindowResize, false);
             window.removeEventListener('online', this._onWindowOnline, false);
         }
 
