@@ -27,6 +27,7 @@ dependencies = [
     "arches>=7.6.25,<7.7.0",
     "arches_her>=1.1.0,<1.2.0",
     "arches_ciim_app @ git+https://github.com/k-int/arches-ciim-app.git@dev/1.0.x",
+    "arches_pdf_exporting @ git+https://github.com/k-int/arches-pdf-exporting@dev/1.0.x",
     "redis",
 ]
 version = "0.0.1"

@@ -4,6 +4,7 @@ from django.conf.urls.i18n import i18n_patterns
 from django.urls import include, path
 
 urlpatterns = [
+    path("", include("arches_pdf_exporting.urls")),
     path("", include("arches_her.urls")),
     path("", include("arches_ciim_app.urls")),
 ]

@@ -148,6 +148,7 @@ INSTALLED_APPS = (
     "rcahmw",
     "arches_her",
     "arches_ciim_app",
+    "arches_pdf_exporting",
 )
 
 INSTALLED_APPS += ("arches.app",)
@@ -438,6 +439,10 @@ HER_ROOT = os.path.join(
 
 USE_TZ = True
 TIME_ZONE = "Europe/London"
+
+RESOURCE_FORMATTERS["pdf"] = (
+    "arches_pdf_exporting.utils.data_management.resources.formats.pdf.PdfWriter"
+)
 
 try:
     from .package_settings import *
